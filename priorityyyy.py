@@ -21,9 +21,8 @@ def load_data():
     sheet_id = "14howESk1k414yH06e_hG8mCE0HYUcR5VFTnbro4IdiU"
     
     # --- IMPORTANT ---
-    # Replace '0' below with the actual GID of your sheet tab.
-    # Find the GID in your Google Sheet URL (e.g., .../edit#gid=123456789)
-    sheet_gid = "0" 
+    # The GID has been updated to point to your specific sheet tab.
+    sheet_gid = "345729707" 
     
     csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={sheet_gid}"
     
@@ -71,7 +70,7 @@ if not df.empty:
 
     # Display metrics in columns
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Tasks", f"{total_tasks} �")
+    col1.metric("Total Tasks", f"{total_tasks} 📝")
     col2.metric("Most Urgent Tasks", f"{num_most_urgent} 🔥")
     col3.metric("Medium Priority Tasks", f"{num_medium_priority} ⚠️")
 
