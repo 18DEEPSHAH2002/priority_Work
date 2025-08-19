@@ -21,8 +21,12 @@ def load_data(uploaded_file):
         # Read the data into a pandas DataFrame
         df = pd.read_csv(uploaded_file)
         
-        # --- FIX: Strip leading/trailing whitespace from all column names ---
+        # --- FIX 1: Strip leading/trailing whitespace from all column names ---
         df.columns = df.columns.str.strip()
+        
+        # --- FIX 2: Strip leading/trailing whitespace from the 'Priority' column values ---
+        if 'Priority' in df.columns:
+            df['Priority'] = df['Priority'].str.strip()
         
         # --- Data Cleaning and Preprocessing ---
         # Rename columns to be more script-friendly
