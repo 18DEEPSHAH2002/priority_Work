@@ -19,8 +19,13 @@ def load_data():
     """
     # Construct the correct URL to download the Google Sheet as a CSV
     sheet_id = "14howESk1k414yH06e_hG8mCE0HYUcR5VFTnbro4IdiU"
-    # Assuming the data is on the first sheet (gid=0)
-    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid=0"
+    
+    # --- IMPORTANT ---
+    # Replace '0' below with the actual GID of your sheet.
+    # You can find the GID in your Google Sheet URL (e.g., .../edit#gid=123456789)
+    sheet_gid = "0" 
+    
+    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={sheet_gid}"
     
     try:
         # Read the data into a pandas DataFrame
@@ -42,7 +47,7 @@ def load_data():
         
         return df
     except Exception as e:
-        st.error(f"Error loading data from Google Sheet: {e}. Please ensure the sheet is public ('Anyone with the link can view').")
+        st.error(f"Error loading data from Google Sheet: {e}. Please ensure the sheet is public ('Anyone with the link can view') and the GID is correct.")
         return pd.DataFrame() # Return an empty DataFrame on error
 
 # --- Main Application ---
