@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from fpdf import FPDF
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -10,51 +9,6 @@ st.set_page_config(
     page_icon="📊",
     layout="wide",
 )
-
-# --- PDF Generation Function ---
-def create_pdf(df):
-    """Creates a PDF report from a DataFrame."""
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    
-    # Title
-    pdf.cell(0, 10, "Task Report", 0, 1, "C")
-    pdf.ln(10)
-
-    # Table Header
-    pdf.set_font("Arial", "B", 10)
-    col_widths = [80, 40, 30, 30] # Column widths
-    headers = ["Subject", "Marked to Officer", "Priority", "Days Since Start"]
-    for i, header in enumerate(headers):
-        pdf.cell(col_widths[i], 10, header, 1, 0, "C")
-    pdf.ln()
-
-    # Table Rows
-    pdf.set_font("Arial", "", 10)
-    for index, row in df.iterrows():
-        # Using multi_cell for the subject to handle long text
-        subject = row.get("Subject", "N/A")
-        officer = row.get("Marked to Officer", "N/A")
-        priority = row.get("Priority", "N/A")
-        days = str(row.get("Days Since Start", "N/A"))
-
-        # Get current y position to align cells after multi_cell
-        y_before = pdf.get_y()
-        pdf.multi_cell(col_widths[0], 10, subject, 1)
-        y_after = pdf.get_y()
-        x_pos = pdf.get_x()
-        
-        # Reset position for the other cells to align with the start of the multi_cell row
-        pdf.set_xy(x_pos + col_widths[0], y_before)
-
-        pdf.cell(col_widths[1], y_after - y_before, officer, 1)
-        pdf.cell(col_widths[2], y_after - y_before, priority, 1)
-        pdf.cell(col_widths[3], y_after - y_before, days, 1)
-        pdf.ln()
-
-    return pdf.output(dest='S').encode('latin-1')
-
 
 # --- Data Loading ---
 @st.cache_data
@@ -114,20 +68,13 @@ try:
 
     st.markdown("---")
 
-    # Display the filtered data in a table
+    # Display the filtered data in a table, including the 'File' column
     st.subheader("Filtered Task Data")
-    st.dataframe(filtered_df)
+    st.dataframe(filtered_df[[
+        'Subject', 'File', 'Marked to Officer', 'Dealing Branch ', 
+        'Priority', 'Status', 'Days Since Start'
+    ]])
     
-    # PDF Download Button
-    pdf_data = create_pdf(filtered_df[['Subject', 'Marked to Officer', 'Priority', 'Days Since Start']])
-    st.download_button(
-        label="Download Report as PDF",
-        data=pdf_data,
-        file_name=f"task_report_{datetime.now().strftime('%Y%m%d')}.pdf",
-        mime="application/pdf",
-    )
-
-
     st.markdown("---")
 
     # --- Visualizations ---
