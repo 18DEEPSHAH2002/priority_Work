@@ -5,123 +5,146 @@ from datetime import datetime
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="DC Ludhiana Task Dashboard",
+    page_title="Task Analysis Dashboard",
     page_icon="📊",
     layout="wide",
 )
 
-# --- Data Loading ---
+# --- Data Loading and Caching ---
 @st.cache_data
 def load_data():
-    """Loads data from the Google Sheet."""
-    sheet_url = "https://docs.google.com/spreadsheets/d/14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI/export?format=csv"
-    df = pd.read_csv(sheet_url)
-    return df
-
-try:
-    # Load the data
-    df = load_data()
-
-    # --- Data Preprocessing ---
-    df["Entry Date"] = pd.to_datetime(df["Entry Date"], errors="coerce")
-    df["Response Recieved on"] = pd.to_datetime(df["Response Recieved on"], errors="coerce")
-    df["Days Since Start"] = ((datetime.now() - df["Entry Date"]).dt.days).fillna(0).astype(int)
-
-    # --- Sidebar Filters ---
-    st.sidebar.header("Filter Data")
-    departments = st.sidebar.multiselect(
-        "Select Department",
-        options=df["Dealing Branch "].unique(),
-        default=df["Dealing Branch "].unique(),
-    )
-    officers = st.sidebar.multiselect(
-        "Select Officer",
-        options=df["Marked to Officer"].unique(),
-        default=df["Marked to Officer"].unique(),
-    )
-    priorities = st.sidebar.multiselect(
-        "Select Priority",
-        options=df["Priority"].unique(),
-        default=df["Priority"].unique(),
-    )
-
-    # Filter the DataFrame
-    filtered_df = df.query(
-        "`Dealing Branch ` == @departments & `Marked to Officer` == @officers & Priority == @priorities"
-    )
-
-    # --- Main Dashboard Display ---
-    incomplete_df = filtered_df[filtered_df["Status"] != "Completed"].copy()
-
-    # Key Metrics
-    total_tasks = filtered_df.shape[0]
-    incomplete_tasks = incomplete_df.shape[0]
-    urgent_tasks = incomplete_df[incomplete_df["Priority"] == "Most Urgent"].shape[0]
-    medium_priority_tasks = incomplete_df[incomplete_df["Priority"] == "Medium"].shape[0]
-
-    st.subheader("Key Metrics")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Tasks (in selection)", total_tasks)
-    col2.metric("Incomplete Tasks", incomplete_tasks)
-    col3.metric("Urgent Tasks", urgent_tasks, delta_color="inverse")
-    col4.metric("Medium Priority Tasks", medium_priority_tasks, delta_color="off")
-
-    st.markdown("---")
-
-    # Display the filtered data in a table, including the 'File' column
-    st.subheader("Filtered Task Data")
-    st.dataframe(filtered_df[[
-        'Subject', 'File', 'Marked to Officer', 'Dealing Branch ', 
-        'Priority', 'Status', 'Days Since Start'
-    ]])
+    """
+    Loads data from the specified Google Sheet URL.
+    The data is cached to improve performance.
+    """
+    # Construct the correct URL to download the Google Sheet as a CSV
+    sheet_id = "14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI"
+    gid = "213021534"
+    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}"
     
+    try:
+        # Read the data into a pandas DataFrame
+        df = pd.read_csv(csv_url)
+        
+        # --- Data Cleaning and Preprocessing ---
+        # Convert date columns to datetime objects, handling potential errors
+        df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
+        df['End Date'] = pd.to_datetime(df['End Date'], errors='coerce')
+        
+        # Drop rows where essential columns like 'Priority' or 'Department' are missing
+        df.dropna(subset=['Priority', 'Department', 'Assign To', 'Start Date'], inplace=True)
+        
+        return df
+    except Exception as e:
+        st.error(f"Error loading data: {e}")
+        return pd.DataFrame() # Return an empty DataFrame on error
+
+# Load the data
+df = load_data()
+
+# --- Main Application ---
+st.title("📊 Task Management Analysis Dashboard")
+st.markdown("---")
+
+if not df.empty:
+    # --- Key Metrics ---
+    st.header("Key Performance Indicators")
+
+    # Filter data based on priority
+    most_urgent_tasks = df[df['Priority'] == 'Most Urgent']
+    medium_priority_tasks = df[df['Priority'] == 'Medium']
+    
+    # Calculate metrics
+    total_tasks = len(df)
+    num_most_urgent = len(most_urgent_tasks)
+    num_medium_priority = len(medium_priority_tasks)
+
+    # Display metrics in columns
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Tasks", f"{total_tasks} 📝")
+    col2.metric("Most Urgent Tasks", f"{num_most_urgent} 🔥")
+    col3.metric("Medium Priority Tasks", f"{num_medium_priority} ⚠️")
+
     st.markdown("---")
 
     # --- Visualizations ---
-    st.subheader("Visualizations of Incomplete Tasks")
+    st.header("Task Distribution Analysis")
 
-    # Department-wise breakdown for 'Urgent' tasks
-    urgent_by_dept = (
-        incomplete_df[incomplete_df["Priority"] == "Most Urgent"]
-        .groupby("Dealing Branch ")
-        .size()
-        .reset_index(name="count")
-    )
-    fig_urgent_dept = px.bar(
-        urgent_by_dept,
-        x="Dealing Branch ",
-        y="count",
-        title="Urgent Tasks by Department",
-        labels={"Dealing Branch ": "Department", "count": "Number of 'Urgent' Tasks"},
-        color_discrete_sequence=px.colors.sequential.Reds_r,
-    )
+    # Create two columns for the graphs
+    viz_col1, viz_col2 = st.columns(2)
 
-    # Officer-wise breakdown for 'Urgent' tasks
-    urgent_by_officer = (
-        incomplete_df[incomplete_df["Priority"] == "Most Urgent"]
-        .groupby("Marked to Officer")
-        .size()
-        .reset_index(name="count")
-    )
-    fig_urgent_officer = px.bar(
-        urgent_by_officer,
-        x="Marked to Officer",
-        y="count",
-        title="Urgent Tasks by Officer",
-        labels={"Marked to Officer": "Officer", "count": "Number of 'Urgent' Tasks"},
-        color_discrete_sequence=px.colors.sequential.Purples_r,
-    )
+    with viz_col1:
+        # 1. Most Urgent Tasks by Department
+        st.subheader("Most Urgent Tasks by Department")
+        if not most_urgent_tasks.empty:
+            urgent_by_dept = most_urgent_tasks['Department'].value_counts().reset_index()
+            urgent_by_dept.columns = ['Department', 'Number of Tasks']
+            fig1 = px.bar(urgent_by_dept, x='Department', y='Number of Tasks', title='Most Urgent Tasks per Department', color='Department')
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.warning("No 'Most Urgent' tasks to display.")
 
-    # Display charts in two columns
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(fig_urgent_dept, use_container_width=True)
-    with col2:
-        st.plotly_chart(fig_urgent_officer, use_container_width=True)
+        # 2. Medium Priority Tasks by Department
+        st.subheader("Medium Priority Tasks by Department")
+        if not medium_priority_tasks.empty:
+            medium_by_dept = medium_priority_tasks['Department'].value_counts().reset_index()
+            medium_by_dept.columns = ['Department', 'Number of Tasks']
+            fig2 = px.bar(medium_by_dept, x='Department', y='Number of Tasks', title='Medium Priority Tasks per Department', color='Department')
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.warning("No 'Medium' priority tasks to display.")
 
+    with viz_col2:
+        # 3. Most Urgent Tasks by Officer
+        st.subheader("Most Urgent Tasks by Officer")
+        if not most_urgent_tasks.empty:
+            urgent_by_officer = most_urgent_tasks['Assign To'].value_counts().reset_index()
+            urgent_by_officer.columns = ['Officer', 'Number of Tasks']
+            fig3 = px.bar(urgent_by_officer, x='Officer', y='Number of Tasks', title='Most Urgent Tasks per Officer', color='Officer')
+            st.plotly_chart(fig3, use_container_width=True)
+        else:
+            st.warning("No 'Most Urgent' tasks to display.")
 
-except Exception as e:
-    st.error(f"An error occurred while loading or processing the data: {e}")
-    st.warning(
-        "Please make sure the Google Sheet is accessible and has the correct columns."
-    )
+        # 4. Medium Priority Tasks by Officer
+        st.subheader("Medium Priority Tasks by Officer")
+        if not medium_priority_tasks.empty:
+            medium_by_officer = medium_priority_tasks['Assign To'].value_counts().reset_index()
+            medium_by_officer.columns = ['Officer', 'Number of Tasks']
+            fig4 = px.bar(medium_by_officer, x='Officer', y='Number of Tasks', title='Medium Priority Tasks per Officer', color='Officer')
+            st.plotly_chart(fig4, use_container_width=True)
+        else:
+            st.warning("No 'Medium' priority tasks to display.")
+
+    st.markdown("---")
+
+    # --- Pending Task Analysis ---
+    st.header("Pending Task Analysis")
+    
+    # Define pending tasks: Status is not 'Completed' and today's date is after the start date
+    today = datetime.now()
+    pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'] < today)]
+
+    if not pending_tasks.empty:
+        pending_col1, pending_col2 = st.columns(2)
+
+        with pending_col1:
+            # 5. Pending Tasks by Department
+            st.subheader("Pending Tasks by Department")
+            pending_by_dept = pending_tasks['Department'].value_counts().reset_index()
+            pending_by_dept.columns = ['Department', 'Number of Pending Tasks']
+            fig5 = px.bar(pending_by_dept, x='Department', y='Number of Pending Tasks', title='Pending Tasks per Department', color='Department')
+            st.plotly_chart(fig5, use_container_width=True)
+
+        with pending_col2:
+            # 6. Pending Tasks by Officer
+            st.subheader("Pending Tasks by Officer")
+            pending_by_officer = pending_tasks['Assign To'].value_counts().reset_index()
+            pending_by_officer.columns = ['Officer', 'Number of Pending Tasks']
+            fig6 = px.bar(pending_by_officer, x='Officer', y='Number of Pending Tasks', title='Pending Tasks per Officer', color='Officer')
+            st.plotly_chart(fig6, use_container_width=True)
+    else:
+        st.info("Congratulations! There are no pending tasks.")
+
+else:
+    st.warning("Could not load data. Please check the Google Sheet link and permissions.")
+
