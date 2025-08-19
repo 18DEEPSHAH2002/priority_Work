@@ -31,18 +31,17 @@ def load_data():
         df = pd.read_csv(csv_url)
         
         # --- Data Cleaning and Preprocessing ---
-        # Rename columns to be more script-friendly and match the original logic
+        # Rename columns to be more script-friendly
         df.rename(columns={
             'Entry Date': 'Start Date',
-            'Marked to Officer': 'Assign To',
-            'Dealing Branch': 'Department'
+            'Marked to Officer': 'Assign To'
         }, inplace=True)
 
         # Convert date columns to datetime objects, handling potential errors
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
         
         # Drop rows where essential columns are missing
-        df.dropna(subset=['Priority', 'Department', 'Assign To', 'Start Date'], inplace=True)
+        df.dropna(subset=['Priority', 'Dealing Branch', 'Assign To', 'Start Date'], inplace=True)
         
         return df
     except Exception as e:
@@ -83,22 +82,22 @@ if not df.empty:
     viz_col1, viz_col2 = st.columns(2)
 
     with viz_col1:
-        # 1. Most Urgent Tasks by Department
-        st.subheader("Most Urgent Tasks by Department")
+        # 1. Most Urgent Tasks by Dealing Branch
+        st.subheader("Most Urgent Tasks by Dealing Branch")
         if not most_urgent_tasks.empty:
-            urgent_by_dept = most_urgent_tasks['Department'].value_counts().reset_index()
-            urgent_by_dept.columns = ['Department', 'Number of Tasks']
-            fig1 = px.bar(urgent_by_dept, x='Department', y='Number of Tasks', title='Most Urgent Tasks per Department', color='Department')
+            urgent_by_branch = most_urgent_tasks['Dealing Branch'].value_counts().reset_index()
+            urgent_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
+            fig1 = px.bar(urgent_by_branch, x='Dealing Branch', y='Number of Tasks', title='Most Urgent Tasks per Dealing Branch', color='Dealing Branch')
             st.plotly_chart(fig1, use_container_width=True)
         else:
             st.warning("No 'Most Urgent' tasks to display.")
 
-        # 2. Medium Priority Tasks by Department
-        st.subheader("Medium Priority Tasks by Department")
+        # 2. Medium Priority Tasks by Dealing Branch
+        st.subheader("Medium Priority Tasks by Dealing Branch")
         if not medium_priority_tasks.empty:
-            medium_by_dept = medium_priority_tasks['Department'].value_counts().reset_index()
-            medium_by_dept.columns = ['Department', 'Number of Tasks']
-            fig2 = px.bar(medium_by_dept, x='Department', y='Number of Tasks', title='Medium Priority Tasks per Department', color='Department')
+            medium_by_branch = medium_priority_tasks['Dealing Branch'].value_counts().reset_index()
+            medium_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
+            fig2 = px.bar(medium_by_branch, x='Dealing Branch', y='Number of Tasks', title='Medium Priority Tasks per Dealing Branch', color='Dealing Branch')
             st.plotly_chart(fig2, use_container_width=True)
         else:
             st.warning("No 'Medium' priority tasks to display.")
@@ -144,11 +143,11 @@ if not df.empty:
         pending_col1, pending_col2 = st.columns(2)
 
         with pending_col1:
-            # 5. Pending Tasks by Department
-            st.subheader("Pending Tasks by Department")
-            pending_by_dept = pending_tasks['Department'].value_counts().reset_index()
-            pending_by_dept.columns = ['Department', 'Number of Pending Tasks']
-            fig5 = px.bar(pending_by_dept, x='Department', y='Number of Pending Tasks', title='Pending Tasks per Department', color='Department')
+            # 5. Pending Tasks by Dealing Branch
+            st.subheader("Pending Tasks by Dealing Branch")
+            pending_by_branch = pending_tasks['Dealing Branch'].value_counts().reset_index()
+            pending_by_branch.columns = ['Dealing Branch', 'Number of Pending Tasks']
+            fig5 = px.bar(pending_by_branch, x='Dealing Branch', y='Number of Pending Tasks', title='Pending Tasks per Dealing Branch', color='Dealing Branch')
             st.plotly_chart(fig5, use_container_width=True)
 
         with pending_col2:
