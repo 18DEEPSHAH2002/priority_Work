@@ -66,7 +66,7 @@ if not df.empty:
 
     # Display metrics in columns
     col1, col2, col3 = st.columns(3)
-    col1.metric("Total Tasks", f"{total_tasks} �")
+    col1.metric("Total Tasks", f"{total_tasks} 📝")
     col2.metric("Most Urgent Tasks", f"{num_most_urgent} 🔥")
     col3.metric("Medium Priority Tasks", f"{num_medium_priority} ⚠️")
 
@@ -127,7 +127,14 @@ if not df.empty:
     
     # Define pending tasks: Status is not 'Completed' and today's date is after the start date
     today = datetime.now()
-    pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'] < today)]
+    # Ensure 'Status' column exists before trying to filter by it
+    if 'Status' in df.columns:
+        pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'] < today)]
+    else:
+        # If no 'Status' column, assume all tasks are pending if their start date is in the past
+        pending_tasks = df[df['Start Date'] < today]
+        st.info("Note: 'Status' column not found. Pending tasks are calculated based on the 'Start Date'.")
+
 
     if not pending_tasks.empty:
         pending_col1, pending_col2 = st.columns(2)
@@ -152,4 +159,3 @@ if not df.empty:
 
 else:
     st.warning("Could not load data. Please check the Google Sheet link and ensure its sharing permissions are set to 'Anyone with the link'.")
-
