@@ -46,21 +46,21 @@ try:
     st.sidebar.header("Filter Data")
 
     # Filter by Department (Dealing Branch)
-    departments = st.sidebar.multoselect(
+    departments = st.sidebar.multiselect(
         "Select Department",
         options=df["Dealing Branch "].unique(),
         default=df["Dealing Branch "].unique(),
     )
 
     # Filter by Officer (Marked to Officer)
-    officers = st.sidebar.multoselect(
+    officers = st.sidebar.multiselect(
         "Select Officer",
         options=df["Marked to Officer"].unique(),
         default=df["Marked to Officer"].unique(),
     )
 
     # Filter by Priority
-    priorities = st.sidebar.multoselect(
+    priorities = st.sidebar.multiselect(
         "Select Priority",
         options=df["Priority"].unique(),
         default=df["Priority"].unique(),
