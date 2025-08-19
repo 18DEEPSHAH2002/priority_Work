@@ -38,28 +38,29 @@ try:
 
     # Calculate the number of days since the task started
     df["Days Since Start"] = (
-        datetime.now() - df["Entry Date"]
-    ).dt.days
+        (datetime.now() - df["Entry Date"]).dt.days
+    ).fillna(0).astype(int)
+
 
     # --- Sidebar Filters ---
     st.sidebar.header("Filter Data")
 
     # Filter by Department (Dealing Branch)
-    departments = st.sidebar.multiselect(
+    departments = st.sidebar.multoselect(
         "Select Department",
         options=df["Dealing Branch "].unique(),
         default=df["Dealing Branch "].unique(),
     )
 
     # Filter by Officer (Marked to Officer)
-    officers = st.sidebar.multiselect(
+    officers = st.sidebar.multoselect(
         "Select Officer",
         options=df["Marked to Officer"].unique(),
         default=df["Marked to Officer"].unique(),
     )
 
     # Filter by Priority
-    priorities = st.sidebar.multiselect(
+    priorities = st.sidebar.multoselect(
         "Select Priority",
         options=df["Priority"].unique(),
         default=df["Priority"].unique(),
@@ -72,23 +73,28 @@ try:
 
     # --- Main Dashboard Display ---
 
+    # Create a dataframe that excludes completed tasks for visualizations
+    incomplete_df = filtered_df[filtered_df["Status"] != "Completed"].copy()
+
+
     # Key Metrics
     total_tasks = filtered_df.shape[0]
-    incomplete_tasks = filtered_df[
-        filtered_df["Status"] != "Completed"
-    ].shape[0]
-    completed_tasks = filtered_df[
-        filtered_df["Status"] == "Completed"
-    ].shape[0]
+    incomplete_tasks = incomplete_df.shape[0]
+    most_urgent_tasks = incomplete_df[incomplete_df["Priority"] == "Most Urgent"].shape[0]
+    medium_priority_tasks = incomplete_df[incomplete_df["Priority"] == "Medium"].shape[0]
+
 
     st.subheader("Key Metrics")
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Total Tasks", total_tasks)
+        st.metric("Total Tasks (in selection)", total_tasks)
     with col2:
         st.metric("Incomplete Tasks", incomplete_tasks)
     with col3:
-        st.metric("Completed Tasks", completed_tasks)
+        st.metric("Most Urgent Tasks", most_urgent_tasks, delta_color="inverse")
+    with col4:
+        st.metric("Medium Priority Tasks", medium_priority_tasks, delta_color="off")
+
 
     st.markdown("---")
 
@@ -99,50 +105,55 @@ try:
     st.markdown("---")
 
     # --- Visualizations ---
-    st.subheader("Visualizations")
+    st.subheader("Visualizations of Incomplete Tasks")
 
-    # Incomplete Tasks by Department
-    incomplete_by_dept = (
-        filtered_df[filtered_df["Status"] != "Completed"]
+    # Department-wise breakdown for 'Most Urgent' tasks
+    most_urgent_by_dept = (
+        incomplete_df[incomplete_df["Priority"] == "Most Urgent"]
         .groupby("Dealing Branch ")
         .size()
         .reset_index(name="count")
     )
-    fig_dept = px.bar(
-        incomplete_by_dept,
+    fig_most_urgent = px.bar(
+        most_urgent_by_dept,
         x="Dealing Branch ",
         y="count",
-        title="Incomplete Tasks by Department",
-        labels={"Dealing Branch ": "Department", "count": "Number of Incomplete Tasks"},
-        color_discrete_sequence=px.colors.qualitative.Pastel,
+        title="Most Urgent Tasks by Department",
+        labels={"Dealing Branch ": "Department", "count": "Number of 'Most Urgent' Tasks"},
+        color_discrete_sequence=px.colors.sequential.Reds_r,
     )
-    fig_dept.update_layout(
+    fig_most_urgent.update_layout(
         xaxis_title="Department",
-        yaxis_title="Number of Incomplete Tasks",
+        yaxis_title="Number of Tasks",
     )
 
-
-    # Incomplete Tasks by Priority
-    incomplete_by_priority = (
-        filtered_df[filtered_df["Status"] != "Completed"]
-        .groupby("Priority")
+    # Department-wise breakdown for 'Medium' priority tasks
+    medium_priority_by_dept = (
+        incomplete_df[incomplete_df["Priority"] == "Medium"]
+        .groupby("Dealing Branch ")
         .size()
         .reset_index(name="count")
     )
-    fig_priority = px.pie(
-        incomplete_by_priority,
-        names="Priority",
-        values="count",
-        title="Incomplete Tasks by Priority",
-        color_discrete_sequence=px.colors.qualitative.Set2,
+    fig_medium_priority = px.bar(
+        medium_priority_by_dept,
+        x="Dealing Branch ",
+        y="count",
+        title="Medium Priority Tasks by Department",
+        labels={"Dealing Branch ": "Department", "count": "Number of 'Medium' Priority Tasks"},
+        color_discrete_sequence=px.colors.sequential.Oranges_r,
     )
+    fig_medium_priority.update_layout(
+        xaxis_title="Department",
+        yaxis_title="Number of Tasks",
+    )
+
 
     # Display charts
     col1, col2 = st.columns(2)
     with col1:
-        st.plotly_chart(fig_dept, use_container_width=True)
+        st.plotly_chart(fig_most_urgent, use_container_width=True)
     with col2:
-        st.plotly_chart(fig_priority, use_container_width=True)
+        st.plotly_chart(fig_medium_priority, use_container_width=True)
 
 
 except Exception as e:
