@@ -109,7 +109,7 @@ try:
         y="count",
         title="Urgent Tasks by Officer",
         labels={"Marked to Officer": "Officer", "count": "Number of 'Urgent' Tasks"},
-        color_discrete_sequence=px.colors.sequential.Redpurple_r,
+        color_discrete_sequence=px.colors.sequential.Purples_r,
     )
 
     # Display charts in two columns
