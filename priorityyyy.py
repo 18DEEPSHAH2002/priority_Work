@@ -172,4 +172,4 @@ if not df.empty:
 
 else:
     st.warning("Could not load data. Please check the Google Sheet link and ensure its sharing permissions are set to 'Anyone with the link'.")
-�
+
