@@ -68,17 +68,21 @@ if not df.empty:
     # Filter data based on priority
     most_urgent_tasks = df[df['Priority'] == 'Most Urgent']
     medium_priority_tasks = df[df['Priority'] == 'Medium']
+    hard_priority_tasks = df[df['Priority'] == 'Hard']
     
     # Calculate metrics
     total_tasks = len(df)
     num_most_urgent = len(most_urgent_tasks)
     num_medium_priority = len(medium_priority_tasks)
+    num_hard_priority = len(hard_priority_tasks)
 
     # Display metrics in columns
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     col1.metric("Total Tasks", f"{total_tasks} 📝")
     col2.metric("Most Urgent Tasks", f"{num_most_urgent} 🔥")
     col3.metric("Medium Priority Tasks", f"{num_medium_priority} ⚠️")
+    col4.metric("Hard Priority Tasks", f"{num_hard_priority} 🔩")
+
 
     st.markdown("---")
 
@@ -108,6 +112,16 @@ if not df.empty:
             st.plotly_chart(fig2, use_container_width=True)
         else:
             st.warning("No 'Medium' priority tasks to display.")
+            
+        st.subheader("Hard Priority Tasks by Dealing Branch")
+        if not hard_priority_tasks.empty:
+            hard_by_branch = hard_priority_tasks['Dealing Branch'].value_counts().reset_index()
+            hard_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
+            fig_hard_branch = px.bar(hard_by_branch, x='Dealing Branch', y='Number of Tasks', title='Hard Priority Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
+            fig_hard_branch.update_traces(textposition='outside')
+            st.plotly_chart(fig_hard_branch, use_container_width=True)
+        else:
+            st.warning("No 'Hard' priority tasks to display.")
 
     with viz_col2:
         st.subheader("Most Urgent Tasks by Officer")
@@ -129,6 +143,16 @@ if not df.empty:
             st.plotly_chart(fig4, use_container_width=True)
         else:
             st.warning("No 'Medium' priority tasks to display.")
+            
+        st.subheader("Hard Priority Tasks by Officer")
+        if not hard_priority_tasks.empty:
+            hard_by_officer = hard_priority_tasks['Assign To'].value_counts().reset_index()
+            hard_by_officer.columns = ['Officer', 'Number of Tasks']
+            fig_hard_officer = px.bar(hard_by_officer, x='Officer', y='Number of Tasks', title='Hard Priority Tasks per Officer', color='Officer', text='Number of Tasks')
+            fig_hard_officer.update_traces(textposition='outside')
+            st.plotly_chart(fig_hard_officer, use_container_width=True)
+        else:
+            st.warning("No 'Hard' priority tasks to display.")
 
     st.markdown("---")
 
