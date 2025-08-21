@@ -30,11 +30,11 @@ def load_data():
         # --- FIX 1: Strip leading/trailing whitespace from all column names ---
         df.columns = df.columns.str.strip()
         
-        # --- FIX 2: Strip leading/trailing whitespace from the 'Priority' and 'Status' column values ---
+        # --- FIX 2: Strip whitespace and convert to lower case for robust matching ---
         if 'Priority' in df.columns:
-            df['Priority'] = df['Priority'].str.strip()
+            df['Priority'] = df['Priority'].str.strip().str.lower()
         if 'Status' in df.columns:
-            df['Status'] = df['Status'].str.strip()
+            df['Status'] = df['Status'].str.strip().str.lower()
         
         # --- Data Cleaning and Preprocessing ---
         # Rename columns to be more script-friendly
@@ -45,9 +45,6 @@ def load_data():
 
         # Convert date columns to datetime objects, handling potential errors
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
-        
-        # NOTE: Removed the dropna() step to include all rows, even with missing data.
-        # df.dropna(subset=['Priority', 'Dealing Branch', 'Assign To', 'Start Date'], inplace=True)
         
         return df
     except Exception as e:
@@ -65,16 +62,16 @@ if not df.empty:
     # --- Key Metrics ---
     st.header("Key Performance Indicators")
 
-    # Filter data based on priority
-    most_urgent_tasks = df[df['Priority'] == 'Most Urgent']
-    medium_priority_tasks = df[df['Priority'] == 'Medium']
-    high_priority_tasks = df[df['Priority'] == 'High']
+    # Filter data based on priority (using lowercase)
+    most_urgent_tasks = df[df['Priority'] == 'most urgent']
+    medium_priority_tasks = df[df['Priority'] == 'medium']
+    high_priority_tasks = df[df['Priority'] == 'high']
     
-    # Calculate pending tasks
+    # Calculate pending tasks (using lowercase)
     today = datetime.now()
     pending_tasks = pd.DataFrame()
     if 'Status' in df.columns and 'Start Date' in df.columns:
-        pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'].notna()) & (pd.to_datetime(df['Start Date']) < today)]
+        pending_tasks = df[(df['Status'] != 'completed') & (df['Start Date'].notna()) & (pd.to_datetime(df['Start Date']) < today)]
 
     # Calculate metrics
     num_most_urgent = len(most_urgent_tasks)
