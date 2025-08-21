@@ -77,19 +77,17 @@ if not df.empty:
         pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'].notna()) & (pd.to_datetime(df['Start Date']) < today)]
 
     # Calculate metrics
-    total_tasks = len(df)
     num_most_urgent = len(most_urgent_tasks)
     num_medium_priority = len(medium_priority_tasks)
     num_high_priority = len(high_priority_tasks)
     num_pending_tasks = len(pending_tasks)
 
     # Display metrics in columns
-    col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Total Tasks", f"{total_tasks} �")
-    col2.metric("Pending Tasks", f"{num_pending_tasks} ⏳")
-    col3.metric("Most Urgent", f"{num_most_urgent} 🔥")
-    col4.metric("High Priority", f"{num_high_priority} 🔩")
-    col5.metric("Medium Priority", f"{num_medium_priority} ⚠️")
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Pending Tasks", f"{num_pending_tasks} ⏳")
+    col2.metric("Most Urgent", f"{num_most_urgent} 🔥")
+    col3.metric("High Priority", f"{num_high_priority} 🔩")
+    col4.metric("Medium Priority", f"{num_medium_priority} ⚠️")
     
 
     st.markdown("---")
