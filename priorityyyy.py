@@ -85,7 +85,7 @@ if not df.empty:
 
     # Display metrics in columns
     col1, col2, col3, col4, col5 = st.columns(5)
-    col1.metric("Total Tasks", f"{total_tasks} 📝")
+    col1.metric("Total Tasks", f"{total_tasks} �")
     col2.metric("Pending Tasks", f"{num_pending_tasks} ⏳")
     col3.metric("Most Urgent", f"{num_most_urgent} 🔥")
     col4.metric("High Priority", f"{num_high_priority} 🔩")
@@ -184,13 +184,10 @@ if not df.empty:
                 if selected_branch != 'Select a Branch':
                     filtered_df = incomplete_tasks[incomplete_tasks['Dealing Branch'] == selected_branch].copy()
                     
-                    # Calculate pending days
-                    filtered_df['Pending Days'] = (datetime.now() - filtered_df['Start Date']).dt.days
-                    
                     st.markdown("---")
                     st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_branch}")
                     st.dataframe(
-                        filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File', 'Pending Days']],
+                        filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File']],
                         column_config={
                             "File": st.column_config.LinkColumn("PDF File Link")
                         }
@@ -204,13 +201,10 @@ if not df.empty:
                 if selected_officer != 'Select an Officer':
                     filtered_df = incomplete_tasks[incomplete_tasks['Assign To'] == selected_officer].copy()
 
-                    # Calculate pending days
-                    filtered_df['Pending Days'] = (datetime.now() - filtered_df['Start Date']).dt.days
-
                     st.markdown("---")
                     st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_officer}")
                     st.dataframe(
-                        filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File', 'Pending Days']],
+                        filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File']],
                         column_config={
                             "File": st.column_config.LinkColumn("PDF File Link")
                         }
