@@ -186,7 +186,12 @@ if not df.empty:
                     
                     st.markdown("---")
                     st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_branch}")
-                    st.dataframe(filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'File', 'Pending Days']])
+                    st.dataframe(
+                        filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File', 'Pending Days']],
+                        column_config={
+                            "File": st.column_config.LinkColumn("PDF File Link")
+                        }
+                    )
 
             elif analysis_type == "Officer Wise":
                 officers = ['Select an Officer'] + sorted(incomplete_tasks['Assign To'].unique().tolist())
@@ -200,7 +205,12 @@ if not df.empty:
 
                     st.markdown("---")
                     st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_officer}")
-                    st.dataframe(filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'File', 'Pending Days']])
+                    st.dataframe(
+                        filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File', 'Pending Days']],
+                        column_config={
+                            "File": st.column_config.LinkColumn("PDF File Link")
+                        }
+                    )
 
         else:
             st.error("The 'Status' column is required for this analysis but was not found in the data.")
