@@ -46,8 +46,8 @@ def load_data():
         # Convert date columns to datetime objects, handling potential errors
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
         
-        # Drop rows where essential columns are missing
-        df.dropna(subset=['Priority', 'Dealing Branch', 'Assign To', 'Start Date'], inplace=True)
+        # NOTE: Removed the dropna() step to include all rows, even with missing data.
+        # df.dropna(subset=['Priority', 'Dealing Branch', 'Assign To', 'Start Date'], inplace=True)
         
         return df
     except Exception as e:
@@ -199,7 +199,8 @@ if not df.empty:
             analysis_type = st.radio("Analyze by:", ("Dealing Branch Wise", "Officer Wise"))
 
             if analysis_type == "Dealing Branch Wise":
-                branches = ['Select a Branch'] + sorted(incomplete_tasks['Dealing Branch'].unique().tolist())
+                # Handle potential NaN values in 'Dealing Branch' column for filtering
+                branches = ['Select a Branch'] + sorted(incomplete_tasks['Dealing Branch'].dropna().unique().tolist())
                 selected_branch = st.selectbox("Select Dealing Branch", branches)
                 
                 if selected_branch != 'Select a Branch':
@@ -218,7 +219,8 @@ if not df.empty:
                     )
 
             elif analysis_type == "Officer Wise":
-                officers = ['Select an Officer'] + sorted(incomplete_tasks['Assign To'].unique().tolist())
+                # Handle potential NaN values in 'Assign To' column for filtering
+                officers = ['Select an Officer'] + sorted(incomplete_tasks['Assign To'].dropna().unique().tolist())
                 selected_officer = st.selectbox("Select Officer", officers)
 
                 if selected_officer != 'Select an Officer':
