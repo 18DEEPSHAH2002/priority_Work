@@ -57,153 +57,153 @@ def load_data():
 # --- Load Data ---
 df = load_data()
 
-# --- Sidebar for Navigation ---
-st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Dashboard", "Incomplete Work Analysis"])
-
 # --- Main Application ---
-if page == "Dashboard":
-    st.title("📊 Task Management Analysis Dashboard")
+st.title("📊 Task Management Analysis Dashboard")
+st.markdown("---")
+
+if not df.empty:
+    # --- Key Metrics ---
+    st.header("Key Performance Indicators")
+
+    # Filter data based on priority
+    most_urgent_tasks = df[df['Priority'] == 'Most Urgent']
+    medium_priority_tasks = df[df['Priority'] == 'Medium']
+    
+    # Calculate metrics
+    total_tasks = len(df)
+    num_most_urgent = len(most_urgent_tasks)
+    num_medium_priority = len(medium_priority_tasks)
+
+    # Display metrics in columns
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Tasks", f"{total_tasks} 📝")
+    col2.metric("Most Urgent Tasks", f"{num_most_urgent} 🔥")
+    col3.metric("Medium Priority Tasks", f"{num_medium_priority} ⚠️")
+
     st.markdown("---")
 
-    if not df.empty:
-        # --- Key Metrics ---
-        st.header("Key Performance Indicators")
+    # --- Visualizations ---
+    st.header("Task Distribution Analysis")
 
-        # Filter data based on priority
-        most_urgent_tasks = df[df['Priority'] == 'Most Urgent']
-        medium_priority_tasks = df[df['Priority'] == 'Medium']
+    # Create two columns for the graphs
+    viz_col1, viz_col2 = st.columns(2)
+
+    with viz_col1:
+        st.subheader("Most Urgent Tasks by Dealing Branch")
+        if not most_urgent_tasks.empty:
+            urgent_by_branch = most_urgent_tasks['Dealing Branch'].value_counts().reset_index()
+            urgent_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
+            fig1 = px.bar(urgent_by_branch, x='Dealing Branch', y='Number of Tasks', title='Most Urgent Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
+            fig1.update_traces(textposition='outside')
+            st.plotly_chart(fig1, use_container_width=True)
+        else:
+            st.warning("No 'Most Urgent' tasks to display.")
+
+        st.subheader("Medium Priority Tasks by Dealing Branch")
+        if not medium_priority_tasks.empty:
+            medium_by_branch = medium_priority_tasks['Dealing Branch'].value_counts().reset_index()
+            medium_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
+            fig2 = px.bar(medium_by_branch, x='Dealing Branch', y='Number of Tasks', title='Medium Priority Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
+            fig2.update_traces(textposition='outside')
+            st.plotly_chart(fig2, use_container_width=True)
+        else:
+            st.warning("No 'Medium' priority tasks to display.")
+
+    with viz_col2:
+        st.subheader("Most Urgent Tasks by Officer")
+        if not most_urgent_tasks.empty:
+            urgent_by_officer = most_urgent_tasks['Assign To'].value_counts().reset_index()
+            urgent_by_officer.columns = ['Officer', 'Number of Tasks']
+            fig3 = px.bar(urgent_by_officer, x='Officer', y='Number of Tasks', title='Most Urgent Tasks per Officer', color='Officer', text='Number of Tasks')
+            fig3.update_traces(textposition='outside')
+            st.plotly_chart(fig3, use_container_width=True)
+        else:
+            st.warning("No 'Most Urgent' tasks to display.")
+
+        st.subheader("Medium Priority Tasks by Officer")
+        if not medium_priority_tasks.empty:
+            medium_by_officer = medium_priority_tasks['Assign To'].value_counts().reset_index()
+            medium_by_officer.columns = ['Officer', 'Number of Tasks']
+            fig4 = px.bar(medium_by_officer, x='Officer', y='Number of Tasks', title='Medium Priority Tasks per Officer', color='Officer', text='Number of Tasks')
+            fig4.update_traces(textposition='outside')
+            st.plotly_chart(fig4, use_container_width=True)
+        else:
+            st.warning("No 'Medium' priority tasks to display.")
+
+    st.markdown("---")
+
+    # --- Pending Task Analysis ---
+    st.header("Pending Task Analysis")
+    
+    today = datetime.now()
+    if 'Status' in df.columns:
+        pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'] < today)]
+    else:
+        pending_tasks = df[df['Start Date'] < today]
+        st.info("Note: 'Status' column not found. Pending tasks are calculated based on the 'Start Date'.")
+
+    if not pending_tasks.empty:
+        pending_col1, pending_col2 = st.columns(2)
+        with pending_col1:
+            st.subheader("Pending Tasks by Dealing Branch")
+            pending_by_branch = pending_tasks['Dealing Branch'].value_counts().reset_index()
+            pending_by_branch.columns = ['Dealing Branch', 'Number of Pending Tasks']
+            fig5 = px.bar(pending_by_branch, x='Dealing Branch', y='Number of Pending Tasks', title='Pending Tasks per Dealing Branch', color='Dealing Branch', text='Number of Pending Tasks')
+            fig5.update_traces(textposition='outside')
+            st.plotly_chart(fig5, use_container_width=True)
+        with pending_col2:
+            st.subheader("Pending Tasks by Officer")
+            pending_by_officer = pending_tasks['Assign To'].value_counts().reset_index()
+            pending_by_officer.columns = ['Officer', 'Number of Pending Tasks']
+            fig6 = px.bar(pending_by_officer, x='Officer', y='Number of Pending Tasks', title='Pending Tasks per Officer', color='Officer', text='Number of Pending Tasks')
+            fig6.update_traces(textposition='outside')
+            st.plotly_chart(fig6, use_container_width=True)
+    else:
+        st.info("Congratulations! There are no pending tasks.")
         
-        # Calculate metrics
-        total_tasks = len(df)
-        num_most_urgent = len(most_urgent_tasks)
-        num_medium_priority = len(medium_priority_tasks)
+    st.markdown("---")
 
-        # Display metrics in columns
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Tasks", f"{total_tasks} 📝")
-        col2.metric("Most Urgent Tasks", f"{num_most_urgent} 🔥")
-        col3.metric("Medium Priority Tasks", f"{num_medium_priority} ⚠️")
-
-        st.markdown("---")
-
-        # --- Visualizations ---
-        st.header("Task Distribution Analysis")
-
-        # Create two columns for the graphs
-        viz_col1, viz_col2 = st.columns(2)
-
-        with viz_col1:
-            st.subheader("Most Urgent Tasks by Dealing Branch")
-            if not most_urgent_tasks.empty:
-                urgent_by_branch = most_urgent_tasks['Dealing Branch'].value_counts().reset_index()
-                urgent_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
-                fig1 = px.bar(urgent_by_branch, x='Dealing Branch', y='Number of Tasks', title='Most Urgent Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
-                fig1.update_traces(textposition='outside')
-                st.plotly_chart(fig1, use_container_width=True)
-            else:
-                st.warning("No 'Most Urgent' tasks to display.")
-
-            st.subheader("Medium Priority Tasks by Dealing Branch")
-            if not medium_priority_tasks.empty:
-                medium_by_branch = medium_priority_tasks['Dealing Branch'].value_counts().reset_index()
-                medium_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
-                fig2 = px.bar(medium_by_branch, x='Dealing Branch', y='Number of Tasks', title='Medium Priority Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
-                fig2.update_traces(textposition='outside')
-                st.plotly_chart(fig2, use_container_width=True)
-            else:
-                st.warning("No 'Medium' priority tasks to display.")
-
-        with viz_col2:
-            st.subheader("Most Urgent Tasks by Officer")
-            if not most_urgent_tasks.empty:
-                urgent_by_officer = most_urgent_tasks['Assign To'].value_counts().reset_index()
-                urgent_by_officer.columns = ['Officer', 'Number of Tasks']
-                fig3 = px.bar(urgent_by_officer, x='Officer', y='Number of Tasks', title='Most Urgent Tasks per Officer', color='Officer', text='Number of Tasks')
-                fig3.update_traces(textposition='outside')
-                st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.warning("No 'Most Urgent' tasks to display.")
-
-            st.subheader("Medium Priority Tasks by Officer")
-            if not medium_priority_tasks.empty:
-                medium_by_officer = medium_priority_tasks['Assign To'].value_counts().reset_index()
-                medium_by_officer.columns = ['Officer', 'Number of Tasks']
-                fig4 = px.bar(medium_by_officer, x='Officer', y='Number of Tasks', title='Medium Priority Tasks per Officer', color='Officer', text='Number of Tasks')
-                fig4.update_traces(textposition='outside')
-                st.plotly_chart(fig4, use_container_width=True)
-            else:
-                st.warning("No 'Medium' priority tasks to display.")
-
-        st.markdown("---")
-
-        # --- Pending Task Analysis ---
-        st.header("Pending Task Analysis")
-        
-        today = datetime.now()
+    # --- Incomplete Work Analysis Section ---
+    st.header("📋 Detailed Incomplete Work Analysis")
+    
+    with st.expander("Click to view and filter all incomplete tasks"):
         if 'Status' in df.columns:
-            pending_tasks = df[(df['Status'] != 'Completed') & (df['Start Date'] < today)]
-        else:
-            pending_tasks = df[df['Start Date'] < today]
-            st.info("Note: 'Status' column not found. Pending tasks are calculated based on the 'Start Date'.")
+            incomplete_tasks = df[df['Status'] != 'Completed'].copy()
 
-        if not pending_tasks.empty:
-            pending_col1, pending_col2 = st.columns(2)
-            with pending_col1:
-                st.subheader("Pending Tasks by Dealing Branch")
-                pending_by_branch = pending_tasks['Dealing Branch'].value_counts().reset_index()
-                pending_by_branch.columns = ['Dealing Branch', 'Number of Pending Tasks']
-                fig5 = px.bar(pending_by_branch, x='Dealing Branch', y='Number of Pending Tasks', title='Pending Tasks per Dealing Branch', color='Dealing Branch', text='Number of Pending Tasks')
-                fig5.update_traces(textposition='outside')
-                st.plotly_chart(fig5, use_container_width=True)
-            with pending_col2:
-                st.subheader("Pending Tasks by Officer")
-                pending_by_officer = pending_tasks['Assign To'].value_counts().reset_index()
-                pending_by_officer.columns = ['Officer', 'Number of Pending Tasks']
-                fig6 = px.bar(pending_by_officer, x='Officer', y='Number of Pending Tasks', title='Pending Tasks per Officer', color='Officer', text='Number of Pending Tasks')
-                fig6.update_traces(textposition='outside')
-                st.plotly_chart(fig6, use_container_width=True)
-        else:
-            st.info("Congratulations! There are no pending tasks.")
-    else:
-        st.warning("Could not load data. Please check the Google Sheet link and ensure its sharing permissions are set to 'Anyone with the link'.")
-
-elif page == "Incomplete Work Analysis":
-    st.title("📋 Incomplete Work Analysis")
-    st.markdown("---")
-
-    if not df.empty and 'Status' in df.columns:
-        incomplete_tasks = df[df['Status'] != 'Completed'].copy()
-
-        st.header("Filter Incomplete Tasks")
-        
-        # Create filters
-        branches = ['All'] + sorted(incomplete_tasks['Dealing Branch'].unique().tolist())
-        officers = ['All'] + sorted(incomplete_tasks['Assign To'].unique().tolist())
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            selected_branch = st.selectbox("Filter by Dealing Branch", branches)
-        with col2:
-            selected_officer = st.selectbox("Filter by Officer", officers)
+            st.subheader("Filter Incomplete Tasks")
             
-        # Apply filters
-        filtered_df = incomplete_tasks.copy()
-        if selected_branch != 'All':
-            filtered_df = filtered_df[filtered_df['Dealing Branch'] == selected_branch]
-        if selected_officer != 'All':
-            filtered_df = filtered_df[filtered_df['Assign To'] == selected_officer]
+            analysis_type = st.radio("Analyze by:", ("Dealing Branch Wise", "Officer Wise"))
 
-        st.markdown("---")
-        st.header(f"Found {len(filtered_df)} Incomplete Task(s)")
+            if analysis_type == "Dealing Branch Wise":
+                branches = ['Select a Branch'] + sorted(incomplete_tasks['Dealing Branch'].unique().tolist())
+                selected_branch = st.selectbox("Select Dealing Branch", branches)
+                
+                if selected_branch != 'Select a Branch':
+                    filtered_df = incomplete_tasks[incomplete_tasks['Dealing Branch'] == selected_branch].copy()
+                    
+                    # Calculate pending days
+                    filtered_df['Pending Days'] = (datetime.now() - filtered_df['Start Date']).dt.days
+                    
+                    st.markdown("---")
+                    st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_branch}")
+                    st.dataframe(filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'File', 'Pending Days']])
 
-        if not filtered_df.empty:
-            # Display the filtered tasks
-            st.dataframe(filtered_df[['Assign To', 'Dealing Branch', 'Subject', 'File', 'Priority', 'Start Date']])
+            elif analysis_type == "Officer Wise":
+                officers = ['Select an Officer'] + sorted(incomplete_tasks['Assign To'].unique().tolist())
+                selected_officer = st.selectbox("Select Officer", officers)
+
+                if selected_officer != 'Select an Officer':
+                    filtered_df = incomplete_tasks[incomplete_tasks['Assign To'] == selected_officer].copy()
+
+                    # Calculate pending days
+                    filtered_df['Pending Days'] = (datetime.now() - filtered_df['Start Date']).dt.days
+
+                    st.markdown("---")
+                    st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_officer}")
+                    st.dataframe(filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'File', 'Pending Days']])
+
         else:
-            st.info("No incomplete tasks match the current filter criteria.")
+            st.error("The 'Status' column is required for this analysis but was not found in the data.")
 
-    elif 'Status' not in df.columns:
-        st.error("The 'Status' column is required for this analysis but was not found in the data.")
-    else:
-        st.warning("Could not load data to perform analysis.")
+else:
+    st.warning("Could not load data. Please check the Google Sheet link and ensure its sharing permissions are set to 'Anyone with the link'.")
