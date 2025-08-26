@@ -88,87 +88,75 @@ sheet_gid = "345729707"
 GOOGLE_SHEET_URL = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={sheet_gid}"
 df = load_data(GOOGLE_SHEET_URL)
 
-# --- Sidebar Navigation & Filters ---
-st.sidebar.title("📋 Navigation & Filters")
-page = st.sidebar.radio("Go to", ["Officer Tasks Overview", "Task Priority Dashboard"])
-
-# --- NEW: Added a filter to switch between pending and all tasks ---
-status_filter = st.sidebar.selectbox(
-    "Select Task Status to View",
-    ("Pending Tasks", "All Tasks")
-)
+# --- Sidebar Navigation ---
+st.sidebar.title("📋 Navigation")
+page = st.sidebar.radio("Go to", ["Officer Pending Tasks", "Task Priority Dashboard"])
 st.sidebar.markdown("---")
-st.sidebar.info("This dashboard provides an overview of tasks from the Google Sheet.")
+st.sidebar.info("This dashboard provides an overview of pending tasks from the Google Sheet.")
 
 # --- Main Application Logic ---
 # Only proceed if the DataFrame was loaded successfully.
 if not df.empty:
-    # --- UPDATE: Conditionally filter the DataFrame based on the user's selection ---
-    if status_filter == "Pending Tasks":
-        display_df = df[(df['Task Status'] != 'completed') & (df['Start Date'].notna())].copy()
-        title_prefix = "Pending"
-    else: # "All Tasks"
-        display_df = df.copy()
-        title_prefix = "All"
+    # Filter for pending tasks (not 'completed' and start date is valid)
+    pending_tasks_df = df[(df['Task Status'] != 'completed') & (df['Start Date'].notna())].copy()
 
-
-    # --- Page 1: Officer Tasks Overview ---
-    if page == "Officer Tasks Overview":
-        st.title(f"👨‍💼 Officer {title_prefix} Tasks Overview")
-        st.markdown(f"This page shows the number and average age of {title_prefix.lower()} tasks for each officer.")
+    # --- Page 1: Officer Pending Tasks ---
+    if page == "Officer Pending Tasks":
+        st.title("👨‍💼 Officer Pending Tasks Overview")
+        st.markdown("This page shows the number and average age of pending tasks for each officer.")
         st.markdown("---")
 
-        if not display_df.empty:
-            # Count tasks for each officer.
-            officer_counts = display_df['Assign To'].value_counts().reset_index()
-            officer_counts.columns = ['Officer', f'Number of {title_prefix} Tasks']
+        if not pending_tasks_df.empty:
+            # Count pending tasks for each officer.
+            officer_pending_counts = pending_tasks_df['Assign To'].value_counts().reset_index()
+            officer_pending_counts.columns = ['Officer', 'Number of Pending Tasks']
 
             # Calculate Average Pending Days per officer
-            avg_pending_days = display_df.groupby('Assign To')['Days Pending'].mean().round(0).astype(int).reset_index()
+            avg_pending_days = pending_tasks_df.groupby('Assign To')['Days Pending'].mean().round(0).astype(int).reset_index()
             avg_pending_days.rename(columns={'Days Pending': 'Avg. Days Pending', 'Assign To': 'Officer'}, inplace=True)
 
             # Merge the counts and the average days into one summary table.
-            officer_summary = pd.merge(officer_counts, avg_pending_days, on='Officer')
+            officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer')
             officer_summary['Officer'] = officer_summary['Officer'].str.title() # Capitalize for display
 
             col1, col2 = st.columns([1, 2])
             with col1:
-                st.subheader(f"{title_prefix} Task Summary")
+                st.subheader("Pending Task Summary")
                 st.dataframe(officer_summary, use_container_width=True, hide_index=True)
             with col2:
                 st.subheader("Visual Distribution")
                 fig = px.bar(
                     officer_summary,
                     x='Officer',
-                    y=f'Number of {title_prefix} Tasks',
-                    title=f'Number of {title_prefix} Tasks per Officer',
-                    text=f'Number of {title_prefix} Tasks',
+                    y='Number of Pending Tasks',
+                    title='Number of Pending Tasks per Officer',
+                    text='Number of Pending Tasks',
                     color='Officer',
                     color_discrete_sequence=px.colors.qualitative.Pastel
                 )
                 fig.update_traces(textposition='outside')
-                fig.update_layout(xaxis_title="Officer Name", yaxis_title=f"Count of {title_prefix} Tasks", showlegend=False)
+                fig.update_layout(xaxis_title="Officer Name", yaxis_title="Count of Pending Tasks", showlegend=False)
                 st.plotly_chart(fig, use_container_width=True)
         else:
-            st.warning(f"No {title_prefix.lower()} tasks found to display.")
+            st.warning("No pending tasks found to display.")
 
     # --- Page 2: Task Priority Dashboard ---
     elif page == "Task Priority Dashboard":
         st.title("📊 Task Priority Dashboard")
-        st.markdown(f"An in-depth look at the distribution of **{title_prefix.lower()} tasks** by priority, department, and officer.")
+        st.markdown("An in-depth look at task distribution by priority level, department, and officer.")
         st.markdown("---")
 
-        if not display_df.empty:
+        if not pending_tasks_df.empty:
             # --- Key Metrics ---
             st.header("High-Level Summary")
-            total_tasks = display_df.shape[0]
-            most_urgent_count = display_df[display_df['Priority'] == 'most urgent'].shape[0]
-            high_count = display_df[display_df['Priority'] == 'high'].shape[0]
-            medium_count = display_df[display_df['Priority'] == 'medium'].shape[0]
-            oldest_task_days = display_df['Days Pending'].max() if not display_df.empty else 0
+            total_pending = pending_tasks_df.shape[0]
+            most_urgent_count = pending_tasks_df[pending_tasks_df['Priority'] == 'most urgent'].shape[0]
+            high_count = pending_tasks_df[pending_tasks_df['Priority'] == 'high'].shape[0]
+            medium_count = pending_tasks_df[pending_tasks_df['Priority'] == 'medium'].shape[0]
+            oldest_task_days = pending_tasks_df['Days Pending'].max() if not pending_tasks_df.empty else 0
 
             col1, col2, col3, col4, col5 = st.columns(5)
-            col1.metric(f"Total {title_prefix} Tasks", total_tasks)
+            col1.metric("Total Pending", total_pending)
             col2.metric("Most Urgent", most_urgent_count)
             col3.metric("High Priority", high_count)
             col4.metric("Medium Priority", medium_count)
@@ -192,7 +180,7 @@ if not df.empty:
 
             for priority, icon in priority_levels.items():
                 st.header(f"{icon} {priority} Priority Tasks")
-                priority_df = display_df[display_df['Priority'] == priority.lower()]
+                priority_df = pending_tasks_df[pending_tasks_df['Priority'] == priority.lower()]
                 
                 if not priority_df.empty:
                     col1, col2 = st.columns(2)
@@ -203,11 +191,10 @@ if not df.empty:
                         dept_data = priority_df['Dealing Branch'].value_counts().reset_index()
                         st.plotly_chart(create_bar_chart(dept_data, 'Dealing Branch', f'Department-wise {priority} Tasks', 'Dealing Branch'), use_container_width=True)
                 else:
-                    st.info(f"No '{priority}' priority tasks are currently in this view.")
+                    st.info(f"No '{priority}' priority tasks are currently pending.")
                 st.markdown("---")
 
         else:
-            st.warning(f"No {title_prefix.lower()} tasks found to display.")
+            st.warning("No pending tasks found to display.")
 else:
     st.error("Failed to load data. Please check the Google Sheet URL and permissions.")
-
