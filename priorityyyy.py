@@ -120,24 +120,27 @@ if not df.empty:
             officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer')
             officer_summary['Officer'] = officer_summary['Officer'].str.title() # Capitalize for display
 
-            col1, col2 = st.columns([1, 2])
-            with col1:
-                st.subheader("Pending Task Summary")
-                st.dataframe(officer_summary, use_container_width=True, hide_index=True)
-            with col2:
-                st.subheader("Visual Distribution")
-                fig = px.bar(
-                    officer_summary,
-                    x='Officer',
-                    y='Number of Pending Tasks',
-                    title='Number of Pending Tasks per Officer',
-                    text='Number of Pending Tasks',
-                    color='Officer',
-                    color_discrete_sequence=px.colors.qualitative.Pastel
-                )
-                fig.update_traces(textposition='outside')
-                fig.update_layout(xaxis_title="Officer Name", yaxis_title="Count of Pending Tasks", showlegend=False)
-                st.plotly_chart(fig, use_container_width=True)
+            # --- LAYOUT CHANGE: Show graph first, then the table ---
+            
+            # 1. Display the graph
+            st.subheader("Visual Distribution")
+            fig = px.bar(
+                officer_summary,
+                x='Officer',
+                y='Number of Pending Tasks',
+                title='Number of Pending Tasks per Officer',
+                text='Number of Pending Tasks',
+                color='Officer',
+                color_discrete_sequence=px.colors.qualitative.Pastel
+            )
+            fig.update_traces(textposition='outside')
+            fig.update_layout(xaxis_title="Officer Name", yaxis_title="Count of Pending Tasks", showlegend=False)
+            st.plotly_chart(fig, use_container_width=True)
+
+            # 2. Display the table below the graph
+            st.subheader("Pending Task Summary")
+            st.dataframe(officer_summary, use_container_width=True, hide_index=True)
+            
         else:
             st.warning("No pending tasks found to display.")
 
@@ -195,7 +198,7 @@ if not df.empty:
                     st.info(f"No '{priority}' priority tasks are currently pending.")
                 st.markdown("---")
             
-            # --- NEW: Added an expander to show the exact data being used for the charts ---
+            # --- Added an expander to show the exact data being used for the charts ---
             with st.expander("View Filtered Data for Charts"):
                 st.info("This table shows the exact data being used to generate the charts above. A task is considered 'pending' if its status is not 'completed'.")
                 st.dataframe(pending_tasks_df)
