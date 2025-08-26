@@ -67,7 +67,8 @@ df = load_data()
 
 # --- Sidebar Navigation ---
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Dashboard", "Officer Summary"])
+# Set "Officer Summary" as the default page by listing it first
+page = st.sidebar.radio("Go to", ["Officer Summary", "Dashboard"])
 
 
 # --- Main Application Logic ---
