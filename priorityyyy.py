@@ -21,8 +21,8 @@ def load_data(url):
     """
     try:
         # Construct the correct URL to export the Google Sheet as a CSV file.
-        csv_url = url.replace('/edit?usp=sharing', '/export?format=csv&gid=0')
-        csv_url = csv_url.replace('/edit', '/export?format=csv') # A more general replacement
+        # This is a more robust way to handle various Google Sheet URL formats.
+        csv_url = url.replace('/edit?', '/export?format=csv&')
         df = pd.read_csv(csv_url)
 
         # --- Data Cleaning and Preparation ---
