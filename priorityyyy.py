@@ -100,6 +100,12 @@ if not df.empty:
     # --- A task is pending if its status is NOT 'completed' ---
     pending_tasks_df = df[df['Task Status'] != 'completed'].copy()
 
+    # --- UPDATE: Filter out 'unknown' or 'nan' assignments before displaying ---
+    # This removes rows where the officer or department is unassigned from all calculations.
+    pending_tasks_df = pending_tasks_df[
+        ~pending_tasks_df['Assign To'].isin(['unknown', 'nan'])
+    ].copy()
+
 
     # --- Page 1: Officer Pending Tasks ---
     if page == "Officer Pending Tasks":
@@ -192,7 +198,9 @@ if not df.empty:
                         officer_data = priority_df['Assign To'].value_counts().reset_index()
                         st.plotly_chart(create_bar_chart(officer_data, 'Assign To', f'Officer-wise {priority} Tasks', 'Assign To'), use_container_width=True)
                     with col2:
-                        dept_data = priority_df['Dealing Branch'].value_counts().reset_index()
+                        # Filter out unknown/nan branches before charting
+                        branch_data = priority_df[~priority_df['Dealing Branch'].isin(['unknown', 'nan'])]
+                        dept_data = branch_data['Dealing Branch'].value_counts().reset_index()
                         st.plotly_chart(create_bar_chart(dept_data, 'Dealing Branch', f'Department-wise {priority} Tasks', 'Dealing Branch'), use_container_width=True)
                 else:
                     st.info(f"No '{priority}' priority tasks are currently pending.")
