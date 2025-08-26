@@ -1,243 +1,176 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
 
 # --- Page Configuration ---
 st.set_page_config(
-    page_title="Task Analysis Dashboard",
-    page_icon="📊",
+    page_title="Task Management Dashboard",
+    page_icon="✅",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
-# --- Force Light Theme ---
-st.markdown("""
-<style>
-    [data-testid="stAppViewContainer"] > .main {
-        background-color: #FFFFFF;
-    }
-    /* Style the tabs */
-    .stTabs [data-baseweb="tab-list"] {
-		gap: 2px;
-	}
-	.stTabs [data-baseweb="tab"] {
-		height: 50px;
-        white-space: pre-wrap;
-		background-color: #F0F2F6;
-        border-radius: 4px 4px 0px 0px;
-		gap: 1px;
-		padding-top: 10px;
-		padding-bottom: 10px;
-    }
-    .stTabs [aria-selected="true"] {
-  		background-color: #FFFFFF;
-	}
-</style>
-""", unsafe_allow_html=True)
-
-
-# --- Data Loading and Caching ---
+# --- Caching Function for Data Loading ---
 @st.cache_data
-def load_data():
-    """
-    Loads data from the specified Google Sheet URL.
-    The data is cached to improve performance.
-    """
-    # Construct the correct URL to download the Google Sheet as a CSV
-    sheet_id = "14howESk1k414yH06e_hG8mCE0HYUcR5VFTnbro4IdiU"
-    sheet_gid = "345729707"  # Specific GID for your sheet tab
-    
-    csv_url = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={sheet_gid}"
-    
+def load_data(url):
+    """Loads and preprocesses data from the Google Sheet."""
     try:
-        # Read the data into a pandas DataFrame
+        # Construct the CSV export URL
+        csv_url = url.replace('/edit?gid=', '/export?format=csv&gid=')
         df = pd.read_csv(csv_url)
-        
-        # --- FIX 1: Strip leading/trailing whitespace from all column names ---
-        df.columns = df.columns.str.strip()
-        
-        # --- FIX 2: Clean all relevant text columns for consistent grouping ---
-        text_columns = ['Priority', 'Status', 'Dealing Branch', 'Assign To']
-        for col in text_columns:
-            if col in df.columns:
-                # Use .astype(str) to handle potential non-string data before applying .str methods
-                df[col] = df[col].astype(str).str.strip().str.lower()
-        
-        # --- Data Cleaning and Preprocessing ---
-        # Rename columns to be more script-friendly
-        df.rename(columns={
-            'Entry Date': 'Start Date',
-            'Marked to Officer': 'Assign To'
-        }, inplace=True)
 
-        # Convert date columns to datetime objects, handling potential errors
-        df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
-        
+        # Data Cleaning and Preparation
+        df.columns = df.columns.str.strip()
+        df['Pending Since'] = pd.to_datetime(df['Pending Since'], errors='coerce')
+        df['Task Status'] = df['Task Status'].str.strip().fillna('Unknown')
+        df['Officer Name'] = df['Officer Name'].str.strip().fillna('Unassigned')
+        df['Department'] = df['Department'].str.strip().fillna('Unknown')
+        df['Priority'] = df['Priority'].str.strip().fillna('Not Specified')
         return df
     except Exception as e:
-        st.error(f"Error loading data from Google Sheet: {e}. Please ensure the sheet is public ('Anyone with the link can view') and the GID is correct.")
-        return pd.DataFrame() # Return an empty DataFrame on error
+        st.error(f"An error occurred while loading the data: {e}")
+        return pd.DataFrame()
 
-# --- Load Data ---
-df = load_data()
+# --- Data Loading ---
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI/edit?gid=213021534"
+df = load_data(GOOGLE_SHEET_URL)
 
-# --- Main Application Title ---
-st.title("📊 Task Management Analysis Dashboard")
-
+# --- Sidebar Navigation ---
+st.sidebar.title("Navigation")
+page = st.sidebar.radio("Go to", ["Officer Pending Tasks", "Task Priority Dashboard"])
+st.sidebar.markdown("---")
+st.sidebar.info("This dashboard provides an overview of pending tasks based on the provided Google Sheet.")
 
 # --- Main Application Logic ---
 if not df.empty:
-    # --- Pre-calculate pending tasks for use in all pages ---
-    today = datetime.now()
-    pending_tasks = pd.DataFrame()
-    if 'Status' in df.columns and 'Start Date' in df.columns:
-        pending_tasks = df[(df['Status'] != 'completed') & (df['Start Date'].notna()) & (pd.to_datetime(df['Start Date']) < today)]
+    # Filter for pending tasks
+    pending_tasks_df = df[df['Task Status'].str.lower() == 'pending'].copy()
 
-    # --- Create Tabs for Navigation ---
-    tab1, tab2 = st.tabs(["Officer Summary", "Full Dashboard"])
+    if page == "Officer Pending Tasks":
+        # --- Officer Pending Tasks Page ---
+        st.title("👨‍💼 Officer Pending Tasks Overview")
+        st.markdown("This page shows the number of pending tasks for each officer.")
 
-    # --- Tab 1: Officer Summary ---
-    with tab1:
-        st.title("👨‍💼 Officer-wise Pending Task Summary")
-        st.markdown("---")
-        
-        if not pending_tasks.empty:
-            st.header("Pending Task Count per Officer")
-            officer_pending_counts = pending_tasks['Assign To'].value_counts().reset_index()
-            officer_pending_counts.columns = ['Officer', 'Number of Pending Tasks']
-            
-            # Capitalize the officer names for better display
-            officer_pending_counts['Officer'] = officer_pending_counts['Officer'].str.title()
-            
-            st.dataframe(officer_pending_counts, use_container_width=True)
+        if not pending_tasks_df.empty:
+            officer_pending_counts = pending_tasks_df['Officer Name'].value_counts().reset_index()
+            officer_pending_counts.columns = ['Officer Name', 'Number of Pending Tasks']
+
+            col1, col2 = st.columns([1, 2])
+
+            with col1:
+                st.subheader("Pending Task List")
+                st.dataframe(officer_pending_counts, use_container_width=True, hide_index=True)
+
+            with col2:
+                st.subheader("Visual Distribution")
+                fig = px.bar(
+                    officer_pending_counts,
+                    x='Officer Name',
+                    y='Number of Pending Tasks',
+                    title='Number of Pending Tasks per Officer',
+                    text='Number of Pending Tasks',
+                    color='Officer Name',
+                    color_discrete_sequence=px.colors.qualitative.Pastel
+                )
+                fig.update_traces(textposition='outside')
+                fig.update_layout(
+                    xaxis_title="Officer Name",
+                    yaxis_title="Count of Pending Tasks",
+                    showlegend=False,
+                    uniformtext_minsize=8,
+                    uniformtext_mode='hide'
+                )
+                st.plotly_chart(fig, use_container_width=True)
         else:
-            st.info("Congratulations! There are no pending tasks.")
+            st.warning("No pending tasks found to display.")
 
-    # --- Tab 2: Full Dashboard ---
-    with tab2:
-        st.header("Key Performance Indicators")
+    elif page == "Task Priority Dashboard":
+        # --- Task Priority Dashboard Page ---
+        st.title("📊 Task Priority Dashboard")
+        st.markdown("An in-depth look at task distribution by priority level.")
 
-        # Filter data based on priority (using lowercase)
-        most_urgent_tasks = df[df['Priority'] == 'most urgent']
-        medium_priority_tasks = df[df['Priority'] == 'medium']
-        high_priority_tasks = df[df['Priority'] == 'high']
+        if not pending_tasks_df.empty:
+            # --- Key Metrics ---
+            st.header("High-Level Summary")
+            total_pending = pending_tasks_df.shape[0]
+            most_urgent_count = pending_tasks_df[pending_tasks_df['Priority'] == 'Most Urgent'].shape[0]
+            high_count = pending_tasks_df[pending_tasks_df['Priority'] == 'High'].shape[0]
+            medium_count = pending_tasks_df[pending_tasks_df['Priority'] == 'Medium'].shape[0]
 
-        # Calculate metrics
-        num_most_urgent = len(most_urgent_tasks)
-        num_medium_priority = len(medium_priority_tasks)
-        num_high_priority = len(high_priority_tasks)
-        num_pending_tasks = len(pending_tasks)
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("Total Pending Tasks", total_pending)
+            col2.metric("Most Urgent Tasks", most_urgent_count)
+            col3.metric("High Priority Tasks", high_count)
+            col4.metric("Medium Priority Tasks", medium_count)
+            st.markdown("---")
 
-        # Display metrics in columns
-        col1, col2, col3, col4 = st.columns(4)
-        col1.metric("Pending Tasks", f"{num_pending_tasks} ⏳")
-        col2.metric("Most Urgent", f"{num_most_urgent} 🔥")
-        col3.metric("High Priority", f"{num_high_priority} 🔩")
-        col4.metric("Medium Priority", f"{num_medium_priority} ⚠️")
-        
-        st.markdown("---")
+            # --- Helper function for creating bar charts ---
+            def create_bar_chart(data, x_axis, title, color_by):
+                """Creates a styled Plotly bar chart."""
+                fig = px.bar(
+                    data,
+                    x=x_axis,
+                    y='count',
+                    title=title,
+                    text='count',
+                    color=color_by,
+                    color_discrete_sequence=px.colors.qualitative.Set2
+                )
+                fig.update_traces(textposition='outside')
+                fig.update_layout(
+                    yaxis_title="Task Count",
+                    showlegend=True,
+                    uniformtext_minsize=8,
+                    uniformtext_mode='hide'
+                )
+                return fig
 
-        # --- Visualizations ---
-        st.header("Task Distribution Analysis by Priority")
-        viz_col1, viz_col2 = st.columns(2)
-
-        with viz_col1:
-            st.subheader("Most Urgent Tasks by Dealing Branch")
-            if not most_urgent_tasks.empty:
-                urgent_by_branch = most_urgent_tasks['Dealing Branch'].value_counts().reset_index()
-                urgent_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
-                fig1 = px.bar(urgent_by_branch, x='Dealing Branch', y='Number of Tasks', title='Most Urgent Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
-                fig1.update_traces(textposition='outside')
-                st.plotly_chart(fig1, use_container_width=True)
+            # --- Most Urgent Tasks ---
+            st.header("🚨 Most Urgent Tasks")
+            most_urgent_df = pending_tasks_df[pending_tasks_df['Priority'] == 'Most Urgent']
+            if not most_urgent_df.empty:
+                col1, col2 = st.columns(2)
+                with col1:
+                    officer_urgent = most_urgent_df['Officer Name'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(officer_urgent, 'Officer Name', 'Officer-wise Most Urgent Tasks', 'Officer Name'), use_container_width=True)
+                with col2:
+                    dept_urgent = most_urgent_df['Department'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(dept_urgent, 'Department', 'Department-wise Most Urgent Tasks', 'Department'), use_container_width=True)
             else:
-                st.warning("No 'Most Urgent' tasks to display.")
+                st.info("No 'Most Urgent' tasks are currently pending.")
+            st.markdown("---")
 
-            st.subheader("Medium Priority Tasks by Dealing Branch")
-            if not medium_priority_tasks.empty:
-                medium_by_branch = medium_priority_tasks['Dealing Branch'].value_counts().reset_index()
-                medium_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
-                fig2 = px.bar(medium_by_branch, x='Dealing Branch', y='Number of Tasks', title='Medium Priority Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
-                fig2.update_traces(textposition='outside')
-                st.plotly_chart(fig2, use_container_width=True)
+            # --- High Priority Tasks ---
+            st.header("⚠️ High Priority Tasks")
+            high_df = pending_tasks_df[pending_tasks_df['Priority'] == 'High']
+            if not high_df.empty:
+                col1, col2 = st.columns(2)
+                with col1:
+                    officer_high = high_df['Officer Name'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(officer_high, 'Officer Name', 'Officer-wise High Priority Tasks', 'Officer Name'), use_container_width=True)
+                with col2:
+                    dept_high = high_df['Department'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(dept_high, 'Department', 'Department-wise High Priority Tasks', 'Department'), use_container_width=True)
             else:
-                st.warning("No 'Medium' priority tasks to display.")
-                
-            st.subheader("High Priority Tasks by Dealing Branch")
-            if not high_priority_tasks.empty:
-                high_by_branch = high_priority_tasks['Dealing Branch'].value_counts().reset_index()
-                high_by_branch.columns = ['Dealing Branch', 'Number of Tasks']
-                fig_high_branch = px.bar(high_by_branch, x='Dealing Branch', y='Number of Tasks', title='High Priority Tasks per Dealing Branch', color='Dealing Branch', text='Number of Tasks')
-                fig_high_branch.update_traces(textposition='outside')
-                st.plotly_chart(fig_high_branch, use_container_width=True)
+                st.info("No 'High' priority tasks are currently pending.")
+            st.markdown("---")
+
+            # --- Medium Priority Tasks ---
+            st.header("🟡 Medium Priority Tasks")
+            medium_df = pending_tasks_df[pending_tasks_df['Priority'] == 'Medium']
+            if not medium_df.empty:
+                col1, col2 = st.columns(2)
+                with col1:
+                    officer_medium = medium_df['Officer Name'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(officer_medium, 'Officer Name', 'Officer-wise Medium Priority Tasks', 'Officer Name'), use_container_width=True)
+                with col2:
+                    dept_medium = medium_df['Department'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(dept_medium, 'Department', 'Department-wise Medium Priority Tasks', 'Department'), use_container_width=True)
             else:
-                st.warning("No 'High' priority tasks to display.")
+                st.info("No 'Medium' priority tasks are currently pending.")
 
-        with viz_col2:
-            st.subheader("Most Urgent Tasks by Officer")
-            if not most_urgent_tasks.empty:
-                urgent_by_officer = most_urgent_tasks['Assign To'].value_counts().reset_index()
-                urgent_by_officer.columns = ['Officer', 'Number of Tasks']
-                fig3 = px.bar(urgent_by_officer, x='Officer', y='Number of Tasks', title='Most Urgent Tasks per Officer', color='Officer', text='Number of Tasks')
-                fig3.update_traces(textposition='outside')
-                st.plotly_chart(fig3, use_container_width=True)
-            else:
-                st.warning("No 'Most Urgent' tasks to display.")
-
-            st.subheader("Medium Priority Tasks by Officer")
-            if not medium_priority_tasks.empty:
-                medium_by_officer = medium_priority_tasks['Assign To'].value_counts().reset_index()
-                medium_by_officer.columns = ['Officer', 'Number of Tasks']
-                fig4 = px.bar(medium_by_officer, x='Officer', y='Number of Tasks', title='Medium Priority Tasks per Officer', color='Officer', text='Number of Tasks')
-                fig4.update_traces(textposition='outside')
-                st.plotly_chart(fig4, use_container_width=True)
-            else:
-                st.warning("No 'Medium' priority tasks to display.")
-                
-            st.subheader("High Priority Tasks by Officer")
-            if not high_priority_tasks.empty:
-                high_by_officer = high_priority_tasks['Assign To'].value_counts().reset_index()
-                high_by_officer.columns = ['Officer', 'Number of Tasks']
-                fig_high_officer = px.bar(high_by_officer, x='Officer', y='Number of Tasks', title='High Priority Tasks per Officer', color='Officer', text='Number of Tasks')
-                fig_high_officer.update_traces(textposition='outside')
-                st.plotly_chart(fig_high_officer, use_container_width=True)
-            else:
-                st.warning("No 'High' priority tasks to display.")
-
-        st.markdown("---")
-        
-        # --- Incomplete Work Analysis Section ---
-        st.header("📋 Detailed Incomplete Work Analysis")
-        with st.expander("Click to view and filter all incomplete tasks"):
-            if 'Status' in df.columns:
-                incomplete_tasks = pending_tasks.copy()
-                st.subheader("Filter Incomplete Tasks")
-                analysis_type = st.radio("Analyze by:", ("Dealing Branch Wise", "Officer Wise"))
-
-                if analysis_type == "Dealing Branch Wise":
-                    branches = ['Select a Branch'] + sorted(incomplete_tasks['Dealing Branch'].dropna().unique().tolist())
-                    selected_branch = st.selectbox("Select Dealing Branch", branches)
-                    if selected_branch != 'Select a Branch':
-                        filtered_df = incomplete_tasks[incomplete_tasks['Dealing Branch'] == selected_branch].copy()
-                        st.markdown("---")
-                        st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_branch}")
-                        st.dataframe(
-                            filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File']],
-                            column_config={"File": st.column_config.LinkColumn("PDF File Link")}
-                        )
-
-                elif analysis_type == "Officer Wise":
-                    officers = ['Select an Officer'] + sorted(incomplete_tasks['Assign To'].dropna().unique().tolist())
-                    selected_officer = st.selectbox("Select Officer", officers)
-                    if selected_officer != 'Select an Officer':
-                        filtered_df = incomplete_tasks[incomplete_tasks['Assign To'] == selected_officer].copy()
-                        st.markdown("---")
-                        st.subheader(f"Found {len(filtered_df)} Incomplete Task(s) for {selected_officer}")
-                        st.dataframe(
-                            filtered_df[['Start Date', 'Dealing Branch', 'Assign To', 'Subject', 'File']],
-                            column_config={"File": st.column_config.LinkColumn("PDF File Link")}
-                        )
-            else:
-                st.error("The 'Status' column is required for this analysis but was not found in the data.")
-
+        else:
+            st.warning("No pending tasks found to display.")
 else:
-    st.warning("Could not load data. Please check the Google Sheet link and ensure its sharing permissions are set to 'Anyone with the link'.")
+    st.error("Failed to load data from the Google Sheet. Please check the URL and sheet permissions.")
+
