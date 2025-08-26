@@ -11,29 +11,61 @@ st.set_page_config(
 )
 
 # --- Caching Function for Data Loading ---
-@st.cache_data
-def load_data(url):
-    """Loads and preprocesses data from the Google Sheet."""
+@st.cache_data(ttl=600)
+def load_data(sheet_id, gid):
+    """Loads and cleans data from a public Google Sheet."""
     try:
-        # Construct the CSV export URL
-        csv_url = url.replace('/edit?gid=', '/export?format=csv&gid=')
-        df = pd.read_csv(csv_url)
+        url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}'
+        df = pd.read_csv(url, skiprows=1)
 
-        # Data Cleaning and Preparation
-        df.columns = df.columns.str.strip()
-        df['Pending Since'] = pd.to_datetime(df['Pending Since'], errors='coerce')
-        df['Task Status'] = df['Task Status'].str.strip().fillna('Unknown')
-        df['Officer Name'] = df['Officer Name'].str.strip().fillna('Unassigned')
-        df['Department'] = df['Department'].str.strip().fillna('Unknown')
-        df['Priority'] = df['Priority'].str.strip().fillna('Not Specified')
+        # Define and assign column names
+        df.columns = [
+            's_no', 'supervisor_office', 'branch_name', 'clerk', 'case_no',
+            'case_title', 'case_status', 'status_comment', 'pending_stage',
+            'court_name', 'dc_action_needed', 'what_action_needed_to_be_taken_by_dc',
+            'reply_by', 'reply_filed', 'next_hearing_date', 'case_detail',
+            'court_directions', 'direction_details', 'compliance_of_direction',
+            'status_reply_required', 'status_reply_filed', 'case_documents',
+            'remarks', 'days_left'
+        ]
+
+        # --- Data Cleaning and Preparation ---
+        df = df.iloc[1:].reset_index(drop=True)
+        df.dropna(subset=['s_no'], inplace=True)
+
+        # Clean 'case_status'
+        df['case_status'] = df['case_status'].str.strip().str.title().fillna('Not Specified')
+        status_replacements = {'Pending': 'Pending', 'Decided': 'Decided', 'Dismissed': 'Decided', 'Disposed': 'Decided'}
+        df['case_status'] = df['case_status'].replace(status_replacements).fillna('Not Specified')
+        
+        # Clean 'court_name'
+        df['court_name'] = df['court_name'].str.strip().str.title().fillna('Not Specified')
+        court_replacements = {'Punjab And Haryana High Court': 'High Court', 'District Court Ludhiana': 'District Court', 'Supreme Court Of India': 'Supreme Court'}
+        df['court_name'] = df['court_name'].replace(court_replacements)
+
+        # Clean dates and supervisor office
+        df['next_hearing_date'] = pd.to_datetime(df['next_hearing_date'], errors='coerce')
+        df['supervisor_office'] = df['supervisor_office'].str.strip().fillna('Not Assigned')
+        
+        # For this dashboard, we will add a 'Priority' column if it doesn't exist.
+        # This is a placeholder. You should have this column in your actual sheet.
+        if 'Priority' not in df.columns:
+            # Simple logic to assign priority based on another column for demonstration
+            priorities = ['Most Urgent', 'High', 'Medium']
+            df['Priority'] = [priorities[i % 3] for i in range(len(df))]
+
+
         return df
     except Exception as e:
-        st.error(f"An error occurred while loading the data: {e}")
+        st.error(f"Error loading data from Google Sheet: {e}")
+        st.error("Please make sure your Google Sheet is shared with 'Anyone with the link' as a 'Viewer'.")
         return pd.DataFrame()
 
 # --- Data Loading ---
-GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI/edit?gid=213021534"
-df = load_data(GOOGLE_SHEET_URL)
+# Extract from your URL: https://docs.google.com/spreadsheets/d/14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI/edit?gid=213021534
+SHEET_ID = "14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI"
+GID = "213021534"
+df = load_data(SHEET_ID, GID)
 
 # --- Sidebar Navigation ---
 st.sidebar.title("Navigation")
@@ -43,8 +75,8 @@ st.sidebar.info("This dashboard provides an overview of pending tasks based on t
 
 # --- Main Application Logic ---
 if not df.empty:
-    # Filter for pending tasks
-    pending_tasks_df = df[df['Task Status'].str.lower() == 'pending'].copy()
+    # Filter for pending tasks using the new column name
+    pending_tasks_df = df[df['case_status'].str.lower() == 'pending'].copy()
 
     if page == "Officer Pending Tasks":
         # --- Officer Pending Tasks Page ---
@@ -52,7 +84,7 @@ if not df.empty:
         st.markdown("This page shows the number of pending tasks for each officer.")
 
         if not pending_tasks_df.empty:
-            officer_pending_counts = pending_tasks_df['Officer Name'].value_counts().reset_index()
+            officer_pending_counts = pending_tasks_df['supervisor_office'].value_counts().reset_index()
             officer_pending_counts.columns = ['Officer Name', 'Number of Pending Tasks']
 
             col1, col2 = st.columns([1, 2])
@@ -93,6 +125,9 @@ if not df.empty:
             # --- Key Metrics ---
             st.header("High-Level Summary")
             total_pending = pending_tasks_df.shape[0]
+            # NOTE: The provided 'load_data' function does not include a 'Priority' column.
+            # I have added a placeholder 'Priority' column in the load_data function for demonstration.
+            # Please ensure your actual Google Sheet has a 'Priority' column.
             most_urgent_count = pending_tasks_df[pending_tasks_df['Priority'] == 'Most Urgent'].shape[0]
             high_count = pending_tasks_df[pending_tasks_df['Priority'] == 'High'].shape[0]
             medium_count = pending_tasks_df[pending_tasks_df['Priority'] == 'Medium'].shape[0]
@@ -131,11 +166,11 @@ if not df.empty:
             if not most_urgent_df.empty:
                 col1, col2 = st.columns(2)
                 with col1:
-                    officer_urgent = most_urgent_df['Officer Name'].value_counts().reset_index()
-                    st.plotly_chart(create_bar_chart(officer_urgent, 'Officer Name', 'Officer-wise Most Urgent Tasks', 'Officer Name'), use_container_width=True)
+                    officer_urgent = most_urgent_df['supervisor_office'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(officer_urgent, 'supervisor_office', 'Officer-wise Most Urgent Tasks', 'supervisor_office'), use_container_width=True)
                 with col2:
-                    dept_urgent = most_urgent_df['Department'].value_counts().reset_index()
-                    st.plotly_chart(create_bar_chart(dept_urgent, 'Department', 'Department-wise Most Urgent Tasks', 'Department'), use_container_width=True)
+                    dept_urgent = most_urgent_df['branch_name'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(dept_urgent, 'branch_name', 'Department-wise Most Urgent Tasks', 'branch_name'), use_container_width=True)
             else:
                 st.info("No 'Most Urgent' tasks are currently pending.")
             st.markdown("---")
@@ -146,11 +181,11 @@ if not df.empty:
             if not high_df.empty:
                 col1, col2 = st.columns(2)
                 with col1:
-                    officer_high = high_df['Officer Name'].value_counts().reset_index()
-                    st.plotly_chart(create_bar_chart(officer_high, 'Officer Name', 'Officer-wise High Priority Tasks', 'Officer Name'), use_container_width=True)
+                    officer_high = high_df['supervisor_office'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(officer_high, 'supervisor_office', 'Officer-wise High Priority Tasks', 'supervisor_office'), use_container_width=True)
                 with col2:
-                    dept_high = high_df['Department'].value_counts().reset_index()
-                    st.plotly_chart(create_bar_chart(dept_high, 'Department', 'Department-wise High Priority Tasks', 'Department'), use_container_width=True)
+                    dept_high = high_df['branch_name'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(dept_high, 'branch_name', 'Department-wise High Priority Tasks', 'branch_name'), use_container_width=True)
             else:
                 st.info("No 'High' priority tasks are currently pending.")
             st.markdown("---")
@@ -161,11 +196,11 @@ if not df.empty:
             if not medium_df.empty:
                 col1, col2 = st.columns(2)
                 with col1:
-                    officer_medium = medium_df['Officer Name'].value_counts().reset_index()
-                    st.plotly_chart(create_bar_chart(officer_medium, 'Officer Name', 'Officer-wise Medium Priority Tasks', 'Officer Name'), use_container_width=True)
+                    officer_medium = medium_df['supervisor_office'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(officer_medium, 'supervisor_office', 'Officer-wise Medium Priority Tasks', 'supervisor_office'), use_container_width=True)
                 with col2:
-                    dept_medium = medium_df['Department'].value_counts().reset_index()
-                    st.plotly_chart(create_bar_chart(dept_medium, 'Department', 'Department-wise Medium Priority Tasks', 'Department'), use_container_width=True)
+                    dept_medium = medium_df['branch_name'].value_counts().reset_index()
+                    st.plotly_chart(create_bar_chart(dept_medium, 'branch_name', 'Department-wise Medium Priority Tasks', 'branch_name'), use_container_width=True)
             else:
                 st.info("No 'Medium' priority tasks are currently pending.")
 
