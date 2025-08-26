@@ -97,7 +97,7 @@ st.sidebar.info("This dashboard provides an overview of pending tasks from the G
 # --- Main Application Logic ---
 # Only proceed if the DataFrame was loaded successfully.
 if not df.empty:
-    # --- UPDATE: A task is pending if its status is NOT 'completed' ---
+    # --- A task is pending if its status is NOT 'completed' ---
     pending_tasks_df = df[df['Task Status'] != 'completed'].copy()
 
 
@@ -161,7 +161,7 @@ if not df.empty:
             col2.metric("Most Urgent", most_urgent_count)
             col3.metric("High Priority", high_count)
             col4.metric("Medium Priority", medium_count)
-            
+            col5.metric("Oldest Task (Days)", oldest_task_days)
             st.markdown("---")
 
             def create_bar_chart(data, x_axis, title, color_by):
@@ -174,13 +174,13 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent",
-                "High",
-                "Medium"
+                "Most Urgent": "🚨",
+                "High": "⚠️",
+                "Medium": "🟡"
             }
 
             for priority, icon in priority_levels.items():
-                st.header(f" {priority} Priority Tasks")
+                st.header(f"{icon} {priority} Priority Tasks")
                 priority_df = pending_tasks_df[pending_tasks_df['Priority'] == priority.lower()]
                 
                 if not priority_df.empty:
@@ -194,6 +194,11 @@ if not df.empty:
                 else:
                     st.info(f"No '{priority}' priority tasks are currently pending.")
                 st.markdown("---")
+            
+            # --- NEW: Added an expander to show the exact data being used for the charts ---
+            with st.expander("View Filtered Data for Charts"):
+                st.info("This table shows the exact data being used to generate the charts above. A task is considered 'pending' if its status is not 'completed'.")
+                st.dataframe(pending_tasks_df)
 
         else:
             st.warning("No pending tasks found to display.")
