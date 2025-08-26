@@ -18,7 +18,7 @@ st.set_page_config(
 def load_data(url):
     """
     Loads and preprocesses data from the specified Google Sheet URL.
-    It renames columns, cleans data, and calculates pending days.
+    It renames columns, cleans data, standardizes priorities, and calculates pending days.
     """
     try:
         # The URL is the direct CSV export link.
@@ -44,6 +44,22 @@ def load_data(url):
             if col in df.columns:
                 # Use .astype(str) to handle potential non-string data before applying .str methods
                 df[col] = df[col].astype(str).str.strip().str.lower().fillna('unknown')
+        
+        # --- FIX: Standardize Priority Values to handle variations ---
+        # This function maps various text inputs (e.g., "high priority") to a standard set.
+        def standardize_priority(priority_text):
+            if 'most urgent' in priority_text:
+                return 'most urgent'
+            elif 'high' in priority_text:
+                return 'high'
+            elif 'medium' in priority_text:
+                return 'medium'
+            else:
+                return 'unknown'
+
+        # Apply the standardization function to the 'Priority' column.
+        if 'Priority' in df.columns:
+            df['Priority'] = df['Priority'].apply(standardize_priority)
 
         # --- Feature: Calculate Days Pending ---
         # Calculate the number of days a task has been pending from the 'Start Date'.
