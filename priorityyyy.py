@@ -8,6 +8,7 @@ st.set_page_config(
     page_title="Task Analysis Dashboard",
     page_icon="📊",
     layout="wide",
+    initial_sidebar_state="expanded"  # Ensures the sidebar is open by default
 )
 
 # --- Force Light Theme ---
