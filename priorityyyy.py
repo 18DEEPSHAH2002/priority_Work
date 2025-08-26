@@ -8,7 +8,6 @@ st.set_page_config(
     page_title="Task Analysis Dashboard",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="expanded"  # Ensures the sidebar is open by default
 )
 
 # --- Force Light Theme ---
@@ -17,6 +16,22 @@ st.markdown("""
     [data-testid="stAppViewContainer"] > .main {
         background-color: #FFFFFF;
     }
+    /* Style the tabs */
+    .stTabs [data-baseweb="tab-list"] {
+		gap: 2px;
+	}
+	.stTabs [data-baseweb="tab"] {
+		height: 50px;
+        white-space: pre-wrap;
+		background-color: #F0F2F6;
+        border-radius: 4px 4px 0px 0px;
+		gap: 1px;
+		padding-top: 10px;
+		padding-bottom: 10px;
+    }
+    .stTabs [aria-selected="true"] {
+  		background-color: #FFFFFF;
+	}
 </style>
 """, unsafe_allow_html=True)
 
@@ -66,10 +81,8 @@ def load_data():
 # --- Load Data ---
 df = load_data()
 
-# --- Sidebar Navigation ---
-st.sidebar.title("Navigation")
-# Set "Officer Summary" as the default page by listing it first
-page = st.sidebar.radio("Go to", ["Officer Summary", "Dashboard"])
+# --- Main Application Title ---
+st.title("📊 Task Management Analysis Dashboard")
 
 
 # --- Main Application Logic ---
@@ -80,12 +93,28 @@ if not df.empty:
     if 'Status' in df.columns and 'Start Date' in df.columns:
         pending_tasks = df[(df['Status'] != 'completed') & (df['Start Date'].notna()) & (pd.to_datetime(df['Start Date']) < today)]
 
-    # --- Page 1: Dashboard ---
-    if page == "Dashboard":
-        st.title("📊 Task Management Analysis Dashboard")
+    # --- Create Tabs for Navigation ---
+    tab1, tab2 = st.tabs(["Officer Summary", "Full Dashboard"])
+
+    # --- Tab 1: Officer Summary ---
+    with tab1:
+        st.title("👨‍💼 Officer-wise Pending Task Summary")
         st.markdown("---")
         
-        # --- Key Metrics ---
+        if not pending_tasks.empty:
+            st.header("Pending Task Count per Officer")
+            officer_pending_counts = pending_tasks['Assign To'].value_counts().reset_index()
+            officer_pending_counts.columns = ['Officer', 'Number of Pending Tasks']
+            
+            # Capitalize the officer names for better display
+            officer_pending_counts['Officer'] = officer_pending_counts['Officer'].str.title()
+            
+            st.dataframe(officer_pending_counts, use_container_width=True)
+        else:
+            st.info("Congratulations! There are no pending tasks.")
+
+    # --- Tab 2: Full Dashboard ---
+    with tab2:
         st.header("Key Performance Indicators")
 
         # Filter data based on priority (using lowercase)
@@ -209,23 +238,6 @@ if not df.empty:
                         )
             else:
                 st.error("The 'Status' column is required for this analysis but was not found in the data.")
-
-    # --- Page 2: Officer Summary ---
-    elif page == "Officer Summary":
-        st.title("👨‍💼 Officer-wise Pending Task Summary")
-        st.markdown("---")
-        
-        if not pending_tasks.empty:
-            st.header("Pending Task Count per Officer")
-            officer_pending_counts = pending_tasks['Assign To'].value_counts().reset_index()
-            officer_pending_counts.columns = ['Officer', 'Number of Pending Tasks']
-            
-            # Capitalize the officer names for better display
-            officer_pending_counts['Officer'] = officer_pending_counts['Officer'].str.title()
-            
-            st.dataframe(officer_pending_counts, use_container_width=True)
-        else:
-            st.info("Congratulations! There are no pending tasks.")
 
 else:
     st.warning("Could not load data. Please check the Google Sheet link and ensure its sharing permissions are set to 'Anyone with the link'.")
