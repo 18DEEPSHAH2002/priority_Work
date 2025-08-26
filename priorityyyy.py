@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import re
 
 # --- Page Configuration ---
 # Set the layout and appearance of the Streamlit page.
@@ -20,9 +21,18 @@ def load_data(url):
     It cleans column names and handles potential missing values.
     """
     try:
-        # Construct the correct URL to export the Google Sheet as a CSV file.
-        # This is a more robust way to handle various Google Sheet URL formats.
-        csv_url = url.replace('/edit?', '/export?format=csv&')
+        # Use regex to extract the sheet ID and GID for a robust URL construction
+        sheet_id_match = re.search(r'spreadsheets/d/([a-zA-Z0-9-_]+)', url)
+        gid_match = re.search(r'gid=([0-9]+)', url)
+        
+        if sheet_id_match and gid_match:
+            sheet_id = sheet_id_match.group(1)
+            gid = gid_match.group(1)
+            csv_url = f'https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={gid}'
+        else:
+            # Fallback for simpler URLs
+            csv_url = url.replace('/edit?', '/export?format=csv&')
+
         df = pd.read_csv(csv_url)
 
         # --- Data Cleaning and Preparation ---
@@ -48,7 +58,7 @@ def load_data(url):
 
 # --- Data Loading ---
 # The URL of your Google Sheet. Make sure it's shared correctly.
-GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI/edit?usp=sharing"
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/14-idXJHzHKCUQxxaqGZi-6S0G20gvPUhK4G16ci2FwI/edit?gid=213021534#gid=213021534"
 df = load_data(GOOGLE_SHEET_URL)
 
 # --- Sidebar Navigation ---
