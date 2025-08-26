@@ -4,7 +4,6 @@ import plotly.express as px
 from datetime import datetime
 
 # --- Page Configuration ---
-# Set the layout and appearance of the Streamlit page.
 st.set_page_config(
     page_title="Task Management Dashboard",
     page_icon="✅",
@@ -12,41 +11,32 @@ st.set_page_config(
 )
 
 # --- Caching Function for Data Loading ---
-# Using st.cache_data ensures that the data is loaded only once,
-# speeding up the app's performance on subsequent runs.
 @st.cache_data
 def load_data(url):
     """
     Loads and preprocesses data from the specified Google Sheet URL.
-    It renames columns, cleans data, standardizes priorities, and calculates pending days.
     """
     try:
-        # The URL is the direct CSV export link.
         df = pd.read_csv(url)
-
-        # --- Data Cleaning and Preparation ---
-        # Strip any leading/trailing whitespace from all column names.
         df.columns = df.columns.str.strip()
 
-        # Rename columns to be more script-friendly to match the sheet's actual headers
+        # Rename columns
         df.rename(columns={
             'Entry Date': 'Start Date',
             'Marked to Officer': 'Assign To',
             'Status': 'Task Status' 
         }, inplace=True)
 
-        # Convert date columns to datetime objects, handling potential errors
+        # Convert dates
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
 
-        # Clean up all relevant text columns for consistent grouping and filtering.
+        # Clean text columns
         text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To']
         for col in text_columns:
             if col in df.columns:
-                # Use .astype(str) to handle potential non-string data before applying .str methods
                 df[col] = df[col].astype(str).str.strip().str.lower().fillna('unknown')
-        
-        # --- FIX: Standardize Priority Values to handle variations ---
-        # This function maps various text inputs (e.g., "high priority") to a standard set.
+
+        # Standardize priority
         def standardize_priority(priority_text):
             if 'most urgent' in priority_text:
                 return 'most urgent'
@@ -57,32 +47,22 @@ def load_data(url):
             else:
                 return 'unknown'
 
-        # Apply the standardization function to the 'Priority' column.
         if 'Priority' in df.columns:
             df['Priority'] = df['Priority'].apply(standardize_priority)
 
-        # --- Feature: Calculate Days Pending ---
-        # Calculate the number of days a task has been pending from the 'Start Date'.
+        # Days pending
         df['Days Pending'] = (datetime.now() - df['Start Date']).dt.days
         df['Days Pending'] = df['Days Pending'].fillna(0).astype(int)
 
         return df
     except KeyError as e:
-        st.error(f"Column Mismatch Error: Could not find the column {e} in your Google Sheet.")
-        st.info("Please check your Google Sheet for the exact spelling and capitalization of the column headers.")
-        try:
-            temp_df = pd.read_csv(url)
-            st.write("Here are the column names found in your sheet:", temp_df.columns.tolist())
-        except Exception as read_e:
-            st.error(f"Could not read the columns from the sheet. Error: {read_e}")
+        st.error(f"Column Mismatch Error: {e}")
         return pd.DataFrame()
     except Exception as e:
-        st.error(f"An error occurred while loading the data: {e}")
-        st.warning("Please ensure the Google Sheet is shared publicly ('Anyone with the link can view').")
+        st.error(f"Error loading data: {e}")
         return pd.DataFrame()
 
 # --- Data Loading ---
-# Construct the direct CSV export URL from the sheet ID and GID.
 sheet_id = "14howESk1k414yH06e_hG8mCE0HYUcR5VFTnbro4IdiU"
 sheet_gid = "345729707"
 GOOGLE_SHEET_URL = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?format=csv&gid={sheet_gid}"
@@ -94,30 +74,24 @@ page = st.sidebar.radio("Go to", ["Officer Pending Tasks", "Task Priority Dashbo
 st.sidebar.markdown("---")
 st.sidebar.info("This dashboard provides an overview of pending tasks from the Google Sheet.")
 
-# --- Main Application Logic ---
-# Only proceed if the DataFrame was loaded successfully.
+# --- Main App ---
 if not df.empty:
-    # Filter for pending tasks (not 'completed' and start date is valid)
     pending_tasks_df = df[(df['Task Status'] != 'completed') & (df['Start Date'].notna())].copy()
 
     # --- Page 1: Officer Pending Tasks ---
     if page == "Officer Pending Tasks":
         st.title("👨‍💼 Officer Pending Tasks Overview")
-        st.markdown("This page shows the number and average age of pending tasks for each officer.")
         st.markdown("---")
 
         if not pending_tasks_df.empty:
-            # Count pending tasks for each officer.
             officer_pending_counts = pending_tasks_df['Assign To'].value_counts().reset_index()
             officer_pending_counts.columns = ['Officer', 'Number of Pending Tasks']
 
-            # Calculate Average Pending Days per officer
             avg_pending_days = pending_tasks_df.groupby('Assign To')['Days Pending'].mean().round(0).astype(int).reset_index()
             avg_pending_days.rename(columns={'Days Pending': 'Avg. Days Pending', 'Assign To': 'Officer'}, inplace=True)
 
-            # Merge the counts and the average days into one summary table.
             officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer')
-            officer_summary['Officer'] = officer_summary['Officer'].str.title() # Capitalize for display
+            officer_summary['Officer'] = officer_summary['Officer'].str.title()
 
             col1, col2 = st.columns([1, 2])
             with col1:
@@ -143,7 +117,6 @@ if not df.empty:
     # --- Page 2: Task Priority Dashboard ---
     elif page == "Task Priority Dashboard":
         st.title("📊 Task Priority Dashboard")
-        st.markdown("An in-depth look at task distribution by priority level, department, and officer.")
         st.markdown("---")
 
         if not pending_tasks_df.empty:
@@ -164,11 +137,18 @@ if not df.empty:
             st.markdown("---")
 
             def create_bar_chart(data, x_axis, title, color_by):
-                # Capitalize the x-axis labels for better display in charts
                 data[x_axis] = data[x_axis].str.title()
-                fig = px.bar(data, x=x_axis, y='count', title=title, text='count', color=color_by, color_discrete_sequence=px.colors.qualitative.Set2)
+                fig = px.bar(
+                    data, 
+                    x=x_axis, 
+                    y='count', 
+                    title=title, 
+                    text='count', 
+                    color=color_by, 
+                    color_discrete_sequence=px.colors.qualitative.Set2
+                )
                 fig.update_traces(textposition='outside')
-                fig.update_layout(yaxis_title="Task Count", xaxis_title=x_axis.replace('_', ' ').title(), showlegend=True)
+                fig.update_layout(yaxis_title="Task Count", showlegend=True)
                 return fig
 
             # --- Priority Sections ---
@@ -184,12 +164,17 @@ if not df.empty:
                 
                 if not priority_df.empty:
                     col1, col2 = st.columns(2)
+
                     with col1:
                         officer_data = priority_df['Assign To'].value_counts().reset_index()
+                        officer_data.columns = ['Assign To', 'count']
                         st.plotly_chart(create_bar_chart(officer_data, 'Assign To', f'Officer-wise {priority} Tasks', 'Assign To'), use_container_width=True)
+
                     with col2:
                         dept_data = priority_df['Dealing Branch'].value_counts().reset_index()
+                        dept_data.columns = ['Dealing Branch', 'count']
                         st.plotly_chart(create_bar_chart(dept_data, 'Dealing Branch', f'Department-wise {priority} Tasks', 'Dealing Branch'), use_container_width=True)
+
                 else:
                     st.info(f"No '{priority}' priority tasks are currently pending.")
                 st.markdown("---")
