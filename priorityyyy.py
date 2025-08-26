@@ -97,8 +97,9 @@ st.sidebar.info("This dashboard provides an overview of pending tasks from the G
 # --- Main Application Logic ---
 # Only proceed if the DataFrame was loaded successfully.
 if not df.empty:
-    # Filter for pending tasks (not 'completed' and start date is valid)
-    pending_tasks_df = df[(df['Task Status'] != 'completed') & (df['Start Date'].notna())].copy()
+    # --- UPDATE: A task is pending if its status is NOT 'completed' ---
+    pending_tasks_df = df[df['Task Status'] != 'completed'].copy()
+
 
     # --- Page 1: Officer Pending Tasks ---
     if page == "Officer Pending Tasks":
