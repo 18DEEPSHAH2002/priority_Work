@@ -10,6 +10,16 @@ st.set_page_config(
     layout="wide",
 )
 
+# --- Force Light Theme ---
+st.markdown("""
+<style>
+    [data-testid="stAppViewContainer"] > .main {
+        background-color: #FFFFFF;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 # --- Data Loading and Caching ---
 @st.cache_data
 def load_data():
@@ -30,11 +40,12 @@ def load_data():
         # --- FIX 1: Strip leading/trailing whitespace from all column names ---
         df.columns = df.columns.str.strip()
         
-        # --- FIX 2: Strip whitespace and convert to lower case for robust matching ---
-        if 'Priority' in df.columns:
-            df['Priority'] = df['Priority'].str.strip().str.lower()
-        if 'Status' in df.columns:
-            df['Status'] = df['Status'].str.strip().str.lower()
+        # --- FIX 2: Clean all relevant text columns for consistent grouping ---
+        text_columns = ['Priority', 'Status', 'Dealing Branch', 'Assign To']
+        for col in text_columns:
+            if col in df.columns:
+                # Use .astype(str) to handle potential non-string data before applying .str methods
+                df[col] = df[col].astype(str).str.strip().str.lower()
         
         # --- Data Cleaning and Preprocessing ---
         # Rename columns to be more script-friendly
