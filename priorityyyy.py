@@ -25,25 +25,25 @@ def load_data(url):
         df = pd.read_csv(url)
 
         # --- Data Cleaning and Preparation ---
-        # Strip any leading/trailing whitespace from column names.
+        # Strip any leading/trailing whitespace from all column names.
         df.columns = df.columns.str.strip()
 
-        # Rename columns to be more script-friendly and match your new sheet
+        # Rename columns to be more script-friendly to match the sheet's actual headers
         df.rename(columns={
             'Entry Date': 'Start Date',
             'Marked to Officer': 'Assign To',
-            'Status': 'Task Status',
-            'Dealing Branch': 'Department'
+            'Status': 'Task Status' 
         }, inplace=True)
 
         # Convert date columns to datetime objects, handling potential errors
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
 
-        # Clean up text columns by stripping whitespace and filling missing values.
-        text_columns = ['Priority', 'Task Status', 'Department', 'Assign To']
+        # Clean up all relevant text columns for consistent grouping and filtering.
+        text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To']
         for col in text_columns:
             if col in df.columns:
-                df[col] = df[col].astype(str).str.strip().fillna('Unknown')
+                # Use .astype(str) to handle potential non-string data before applying .str methods
+                df[col] = df[col].astype(str).str.strip().str.lower().fillna('unknown')
 
         # --- Feature: Calculate Days Pending ---
         # Calculate the number of days a task has been pending from the 'Start Date'.
@@ -81,8 +81,8 @@ st.sidebar.info("This dashboard provides an overview of pending tasks from the G
 # --- Main Application Logic ---
 # Only proceed if the DataFrame was loaded successfully.
 if not df.empty:
-    # Filter for pending tasks (not completed and start date is in the past)
-    pending_tasks_df = df[(df['Task Status'].str.lower() != 'completed') & (df['Start Date'].notna())].copy()
+    # Filter for pending tasks (not 'completed' and start date is valid)
+    pending_tasks_df = df[(df['Task Status'] != 'completed') & (df['Start Date'].notna())].copy()
 
     # --- Page 1: Officer Pending Tasks ---
     if page == "Officer Pending Tasks":
@@ -101,6 +101,7 @@ if not df.empty:
 
             # Merge the counts and the average days into one summary table.
             officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer')
+            officer_summary['Officer'] = officer_summary['Officer'].str.title() # Capitalize for display
 
             col1, col2 = st.columns([1, 2])
             with col1:
@@ -133,9 +134,9 @@ if not df.empty:
             # --- Key Metrics ---
             st.header("High-Level Summary")
             total_pending = pending_tasks_df.shape[0]
-            most_urgent_count = pending_tasks_df[pending_tasks_df['Priority'].str.lower() == 'most urgent'].shape[0]
-            high_count = pending_tasks_df[pending_tasks_df['Priority'].str.lower() == 'high'].shape[0]
-            medium_count = pending_tasks_df[pending_tasks_df['Priority'].str.lower() == 'medium'].shape[0]
+            most_urgent_count = pending_tasks_df[pending_tasks_df['Priority'] == 'most urgent'].shape[0]
+            high_count = pending_tasks_df[pending_tasks_df['Priority'] == 'high'].shape[0]
+            medium_count = pending_tasks_df[pending_tasks_df['Priority'] == 'medium'].shape[0]
             oldest_task_days = pending_tasks_df['Days Pending'].max() if not pending_tasks_df.empty else 0
 
             col1, col2, col3, col4, col5 = st.columns(5)
@@ -147,6 +148,8 @@ if not df.empty:
             st.markdown("---")
 
             def create_bar_chart(data, x_axis, title, color_by):
+                # Capitalize the x-axis labels for better display in charts
+                data[x_axis] = data[x_axis].str.title()
                 fig = px.bar(data, x=x_axis, y='count', title=title, text='count', color=color_by, color_discrete_sequence=px.colors.qualitative.Set2)
                 fig.update_traces(textposition='outside')
                 fig.update_layout(yaxis_title="Task Count", xaxis_title=x_axis.replace('_', ' ').title(), showlegend=True)
@@ -161,7 +164,7 @@ if not df.empty:
 
             for priority, icon in priority_levels.items():
                 st.header(f"{icon} {priority} Priority Tasks")
-                priority_df = pending_tasks_df[pending_tasks_df['Priority'].str.lower() == priority.lower()]
+                priority_df = pending_tasks_df[pending_tasks_df['Priority'] == priority.lower()]
                 
                 if not priority_df.empty:
                     col1, col2 = st.columns(2)
@@ -169,8 +172,8 @@ if not df.empty:
                         officer_data = priority_df['Assign To'].value_counts().reset_index()
                         st.plotly_chart(create_bar_chart(officer_data, 'Assign To', f'Officer-wise {priority} Tasks', 'Assign To'), use_container_width=True)
                     with col2:
-                        dept_data = priority_df['Department'].value_counts().reset_index()
-                        st.plotly_chart(create_bar_chart(dept_data, 'Department', f'Department-wise {priority} Tasks', 'Department'), use_container_width=True)
+                        dept_data = priority_df['Dealing Branch'].value_counts().reset_index()
+                        st.plotly_chart(create_bar_chart(dept_data, 'Dealing Branch', f'Department-wise {priority} Tasks', 'Dealing Branch'), use_container_width=True)
                 else:
                     st.info(f"No '{priority}' priority tasks are currently pending.")
                 st.markdown("---")
