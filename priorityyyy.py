@@ -161,7 +161,7 @@ if not df.empty:
             col2.metric("Most Urgent", most_urgent_count)
             col3.metric("High Priority", high_count)
             col4.metric("Medium Priority", medium_count)
-            col5.metric("Oldest Task (Days)", oldest_task_days)
+            
             st.markdown("---")
 
             def create_bar_chart(data, x_axis, title, color_by):
@@ -174,13 +174,13 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent": "🚨",
-                "High": "⚠️",
-                "Medium": "🟡"
+                "Most Urgent",
+                "High",
+                "Medium"
             }
 
             for priority, icon in priority_levels.items():
-                st.header(f"{icon} {priority} Priority Tasks")
+                st.header(f" {priority} Priority Tasks")
                 priority_df = pending_tasks_df[pending_tasks_df['Priority'] == priority.lower()]
                 
                 if not priority_df.empty:
