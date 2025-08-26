@@ -17,10 +17,10 @@ st.set_page_config(
 def load_data(url):
     """
     Loads and preprocesses data from the specified Google Sheet URL.
-    It cleans column names and handles potential missing values.
+    It cleans column names, handles potential missing values, and calculates pending days.
     """
     try:
-        # The URL is now the direct CSV export link, so no parsing is needed.
+        # The URL is the direct CSV export link.
         df = pd.read_csv(url)
 
         # --- Data Cleaning and Preparation ---
@@ -37,10 +37,26 @@ def load_data(url):
         df['Department'] = df['Department'].str.strip().fillna('Unknown')
         df['Priority'] = df['Priority'].str.strip().fillna('Not Specified')
         
+        # --- New Feature: Calculate Days Pending ---
+        # Calculate the number of days a task has been pending from the 'Pending Since' date.
+        # NaT (Not a Time) values in 'Pending Since' will result in NaN, which we fill with 0.
+        df['Days Pending'] = (pd.to_datetime('today') - df['Pending Since']).dt.days
+        df['Days Pending'] = df['Days Pending'].fillna(0).astype(int)
+
         return df
+    except KeyError as e:
+        st.error(f"Column Mismatch Error: Could not find the column {e} in your Google Sheet.")
+        st.info("Please check your Google Sheet for the exact spelling and capitalization of the column headers.")
+        # Try to load the data anyway and show the columns found for debugging
+        try:
+            temp_df = pd.read_csv(url)
+            st.write("Here are the column names I found in your sheet:", temp_df.columns.tolist())
+        except Exception as read_e:
+            st.error(f"Could not even read the columns from the sheet. Error: {read_e}")
+        return pd.DataFrame()
     except Exception as e:
         # Provide a more specific error message if data loading fails.
-        st.error(f"Error loading data: {e}")
+        st.error(f"An error occurred while loading the data: {e}")
         st.warning("Please ensure the Google Sheet is shared publicly ('Anyone with the link can view').")
         return pd.DataFrame()
 
@@ -66,7 +82,7 @@ if not df.empty:
     # --- Page 1: Officer Pending Tasks ---
     if page == "Officer Pending Tasks":
         st.title("👨‍💼 Officer Pending Tasks Overview")
-        st.markdown("This page shows the number of pending tasks assigned to each officer.")
+        st.markdown("This page shows the number and average age of pending tasks for each officer.")
         st.markdown("---")
 
         if not pending_tasks_df.empty:
@@ -74,13 +90,20 @@ if not df.empty:
             officer_pending_counts = pending_tasks_df['Officer Name'].value_counts().reset_index()
             officer_pending_counts.columns = ['Officer Name', 'Number of Pending Tasks']
 
+            # --- New Feature: Calculate Average Pending Days ---
+            avg_pending_days = pending_tasks_df.groupby('Officer Name')['Days Pending'].mean().round(0).astype(int).reset_index()
+            avg_pending_days.rename(columns={'Days Pending': 'Avg. Days Pending'}, inplace=True)
+
+            # Merge the counts and the average days into one summary table.
+            officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer Name')
+
             # Create two columns for the layout.
             col1, col2 = st.columns([1, 2])
 
             with col1:
-                st.subheader("Pending Task List")
-                # Display the data in a table.
-                st.dataframe(officer_pending_counts, use_container_width=True, hide_index=True)
+                st.subheader("Pending Task Summary")
+                # Display the enhanced summary table.
+                st.dataframe(officer_summary, use_container_width=True, hide_index=True)
 
             with col2:
                 st.subheader("Visual Distribution")
@@ -117,13 +140,17 @@ if not df.empty:
             most_urgent_count = pending_tasks_df[pending_tasks_df['Priority'] == 'Most Urgent'].shape[0]
             high_count = pending_tasks_df[pending_tasks_df['Priority'] == 'High'].shape[0]
             medium_count = pending_tasks_df[pending_tasks_df['Priority'] == 'Medium'].shape[0]
+            # --- New Feature: Oldest Task Metric ---
+            oldest_task_days = pending_tasks_df['Days Pending'].max() if not pending_tasks_df.empty else 0
+
 
             # Display the key metrics in columns.
-            col1, col2, col3, col4 = st.columns(4)
+            col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("Total Pending Tasks", total_pending)
             col2.metric("Most Urgent Tasks", most_urgent_count)
             col3.metric("High Priority Tasks", high_count)
             col4.metric("Medium Priority Tasks", medium_count)
+            col5.metric("Oldest Task (Days)", oldest_task_days)
             st.markdown("---")
 
             # --- Helper function for creating consistent bar charts ---
