@@ -162,9 +162,16 @@ if not df.empty:
                 departments = ['All'] + sorted(pending_tasks_df['Dealing Branch'].unique().tolist())
                 selected_department = st.selectbox("Select a Department", departments)
 
+            # --- UPDATE: Dynamically update officer list based on department selection ---
             with col2:
-                # Create a sorted list of unique officers for the dropdown
-                officers = ['All'] + sorted(pending_tasks_df['Assign To'].unique().tolist())
+                if selected_department == 'All':
+                    # If all departments are selected, show all officers
+                    officers = ['All'] + sorted(pending_tasks_df['Assign To'].unique().tolist())
+                else:
+                    # If a specific department is selected, show only officers from that department
+                    department_specific_df = pending_tasks_df[pending_tasks_df['Dealing Branch'] == selected_department]
+                    officers = ['All'] + sorted(department_specific_df['Assign To'].unique().tolist())
+                
                 selected_officer = st.selectbox("Select an Officer", officers)
 
             # Filter the dataframe based on the selections
@@ -175,7 +182,7 @@ if not df.empty:
             if selected_officer != 'All':
                 filtered_df = filtered_df[filtered_df['Assign To'] == selected_officer]
 
-            # --- UPDATE: Display the 'File' column as clickable links ---
+            # Display the 'File' column as clickable links
             st.dataframe(
                 filtered_df,
                 column_config={
@@ -219,7 +226,7 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent": "�",
+                "Most Urgent": "🚨",
                 "High": "⚠️",
                 "Medium": "🟡"
             }
