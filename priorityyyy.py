@@ -38,19 +38,19 @@ def load_data(url):
         # Convert date columns to datetime objects, handling potential errors
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
 
-        # Clean up all relevant text columns for consistent grouping and filtering.
-        text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To', 'File']
-        for col in text_columns:
+        # --- UPDATE: Clean text columns and 'File' column separately ---
+        # Clean columns that need to be lowercased for consistent filtering
+        text_columns_to_lower = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To']
+        for col in text_columns_to_lower:
             if col in df.columns:
-                # Convert to string and strip whitespace for all text columns
-                df[col] = df[col].astype(str).str.strip()
-                
-                # --- UPDATE: Convert to lowercase for all columns EXCEPT 'File' to preserve URL case ---
-                if col != 'File':
-                    df[col] = df[col].str.lower()
-                
-                # Replace empty strings or original 'nan' strings with 'unknown'
+                df[col] = df[col].astype(str).str.strip().str.lower()
                 df[col].replace(['', 'nan'], 'unknown', inplace=True)
+
+        # Clean the 'File' column separately to preserve the original URL case and content
+        if 'File' in df.columns:
+            df['File'] = df['File'].astype(str).str.strip()
+            # Replace placeholder values so they don't appear as broken links
+            df['File'].replace(['nan', 'unknown'], '', inplace=True)
         
         # --- FIX: Standardize Priority Values to handle variations ---
         # This function maps various text inputs (e.g., "high priority") to a standard set.
@@ -219,7 +219,7 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent": "🚨",
+                "Most Urgent": "�",
                 "High": "⚠️",
                 "Medium": "🟡"
             }
