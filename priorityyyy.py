@@ -39,7 +39,7 @@ def load_data(url):
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
 
         # Clean up all relevant text columns for consistent grouping and filtering.
-        text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To']
+        text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To', 'File'] # Added 'File'
         for col in text_columns:
             if col in df.columns:
                 # Use .astype(str) to handle potential non-string data before applying .str methods
@@ -168,7 +168,13 @@ if not df.empty:
             if selected_officer != 'All':
                 filtered_df = filtered_df[filtered_df['Assign To'] == selected_officer]
 
-            st.dataframe(filtered_df)
+            # --- UPDATE: Display the 'File' column as clickable links ---
+            st.dataframe(
+                filtered_df,
+                column_config={
+                    "File": st.column_config.LinkColumn("Open File")
+                }
+            )
 
         else:
             st.warning("No pending tasks found to display.")
@@ -206,7 +212,7 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent": "🚨",
+                "Most Urgent": "�",
                 "High": "⚠️",
                 "Medium": "🟡"
             }
@@ -238,3 +244,4 @@ if not df.empty:
             st.warning("No pending tasks found to display.")
 else:
     st.error("Failed to load data. Please check the Google Sheet URL and permissions.")
+�
