@@ -39,11 +39,18 @@ def load_data(url):
         df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
 
         # Clean up all relevant text columns for consistent grouping and filtering.
-        text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To', 'File'] # Added 'File'
+        text_columns = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To', 'File']
         for col in text_columns:
             if col in df.columns:
-                # Use .astype(str) to handle potential non-string data before applying .str methods
-                df[col] = df[col].astype(str).str.strip().str.lower().fillna('unknown')
+                # Convert to string and strip whitespace for all text columns
+                df[col] = df[col].astype(str).str.strip()
+                
+                # --- UPDATE: Convert to lowercase for all columns EXCEPT 'File' to preserve URL case ---
+                if col != 'File':
+                    df[col] = df[col].str.lower()
+                
+                # Replace empty strings or original 'nan' strings with 'unknown'
+                df[col].replace(['', 'nan'], 'unknown', inplace=True)
         
         # --- FIX: Standardize Priority Values to handle variations ---
         # This function maps various text inputs (e.g., "high priority") to a standard set.
@@ -212,7 +219,7 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent": "�",
+                "Most Urgent": "🚨",
                 "High": "⚠️",
                 "Medium": "🟡"
             }
@@ -244,4 +251,3 @@ if not df.empty:
             st.warning("No pending tasks found to display.")
 else:
     st.error("Failed to load data. Please check the Google Sheet URL and permissions.")
-
