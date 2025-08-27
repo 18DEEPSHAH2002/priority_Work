@@ -126,9 +126,7 @@ if not df.empty:
             officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer')
             officer_summary['Officer'] = officer_summary['Officer'].str.title() # Capitalize for display
 
-            # --- LAYOUT CHANGE: Show graph first, then the table ---
-            
-            # 1. Display the graph
+            # --- LAYOUT: Show graph first, then the table ---
             st.subheader("Visual Distribution")
             fig = px.bar(
                 officer_summary,
@@ -143,10 +141,35 @@ if not df.empty:
             fig.update_layout(xaxis_title="Officer Name", yaxis_title="Count of Pending Tasks", showlegend=False)
             st.plotly_chart(fig, use_container_width=True)
 
-            # 2. Display the table below the graph
             st.subheader("Pending Task Summary")
             st.dataframe(officer_summary, use_container_width=True, hide_index=True)
             
+            # --- NEW FEATURE: Filterable Task List ---
+            st.markdown("---")
+            st.header("🔍 Filter and View Pending Task Details")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                # Create a sorted list of unique departments for the dropdown
+                departments = ['All'] + sorted(pending_tasks_df['Dealing Branch'].unique().tolist())
+                selected_department = st.selectbox("Select a Department", departments)
+
+            with col2:
+                # Create a sorted list of unique officers for the dropdown
+                officers = ['All'] + sorted(pending_tasks_df['Assign To'].unique().tolist())
+                selected_officer = st.selectbox("Select an Officer", officers)
+
+            # Filter the dataframe based on the selections
+            filtered_df = pending_tasks_df.copy()
+            if selected_department != 'All':
+                filtered_df = filtered_df[filtered_df['Dealing Branch'] == selected_department]
+            
+            if selected_officer != 'All':
+                filtered_df = filtered_df[filtered_df['Assign To'] == selected_officer]
+
+            st.dataframe(filtered_df)
+
         else:
             st.warning("No pending tasks found to display.")
 
