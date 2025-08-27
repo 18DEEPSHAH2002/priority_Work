@@ -272,4 +272,4 @@ if not df.empty:
             st.warning("No pending tasks found to display.")
 else:
     st.error("Failed to load data. Please check the Google Sheet URL and permissions.")
-�
+
