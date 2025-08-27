@@ -8,7 +8,6 @@ from datetime import datetime
 # Set the layout and appearance of the Streamlit page.
 st.set_page_config(
     page_title="Task Management Dashboard",
-    page_icon="✅",
     layout="wide",
 )
 
@@ -87,7 +86,7 @@ GOOGLE_SHEET_URL = f"https://docs.google.com/spreadsheets/d/{sheet_id}/export?fo
 df = load_data(GOOGLE_SHEET_URL)
 
 # --- Sidebar Navigation ---
-st.sidebar.title("📋 Navigation")
+st.sidebar.title(" Navigation")
 page = st.sidebar.radio("Go to", ["Officer Pending Tasks", "Task Priority Dashboard"])
 st.sidebar.markdown("---")
 st.sidebar.info("This dashboard provides an overview of pending tasks from the Google Sheet.")
@@ -104,7 +103,7 @@ if not df.empty:
 
     # --- Page 1: Officer Pending Tasks ---
     if page == "Officer Pending Tasks":
-        st.title("👨‍💼 Officer Pending Tasks Overview")
+        st.title("Officer Pending Tasks Overview")
         st.markdown("This page shows the number and average age of pending tasks for each officer.")
         st.markdown("---")
 
@@ -193,7 +192,7 @@ if not df.empty:
 
     # --- Page 2: Task Priority Dashboard ---
     elif page == "Task Priority Dashboard":
-        st.title("📊 Task Priority Dashboard")
+        st.title(" Task Priority Dashboard")
         st.markdown("An in-depth look at task distribution by priority level, department, and officer.")
         st.markdown("---")
 
@@ -224,9 +223,9 @@ if not df.empty:
 
             # --- Priority Sections ---
             priority_levels = {
-                "Most Urgent": "🚨",
-                "High": "⚠️",
-                "Medium": "🟡"
+                "Most Urgent",
+                "High",
+                "Medium"
             }
 
             for priority, icon in priority_levels.items():
