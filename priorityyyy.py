@@ -19,7 +19,7 @@ st.set_page_config(
 def load_data(url):
     """
     Loads and preprocesses data from the specified Google Sheet URL.
-    It renames columns, cleans data, standardizes priorities, and calculates pending days.
+    It cleans data, standardizes priorities, and calculates pending days.
     """
     try:
         # The URL is the direct CSV export link.
@@ -29,20 +29,13 @@ def load_data(url):
         # Strip any leading/trailing whitespace from all column names.
         df.columns = df.columns.str.strip()
 
-        # --- UPDATE: Changed 'Entry Date' to 'Date of Assign' to match the new column name ---
-        # Rename columns to be more script-friendly to match the sheet's actual headers
-        df.rename(columns={
-            'Date of Assign': 'Start Date',
-            'Marked to Officer': 'Assign To',
-            'Status': 'Task Status' 
-        }, inplace=True)
+        # --- UPDATE: Removed the 'rename' step to use original column names directly ---
 
         # Convert date columns to datetime objects, handling potential errors
-        df['Start Date'] = pd.to_datetime(df['Start Date'], errors='coerce')
+        df['Entry Date'] = pd.to_datetime(df['Entry Date'], errors='coerce')
 
-        # --- UPDATE: Clean text columns and 'File' column separately ---
-        # Clean columns that need to be lowercased for consistent filtering
-        text_columns_to_lower = ['Priority', 'Task Status', 'Dealing Branch', 'Assign To']
+        # Clean text columns that need to be lowercased for consistent filtering
+        text_columns_to_lower = ['Priority', 'Status', 'Dealing Branch', 'Marked to Officer']
         for col in text_columns_to_lower:
             if col in df.columns:
                 df[col] = df[col].astype(str).str.strip().str.lower()
@@ -51,11 +44,9 @@ def load_data(url):
         # Clean the 'File' column separately to preserve the original URL case and content
         if 'File' in df.columns:
             df['File'] = df['File'].astype(str).str.strip()
-            # Replace placeholder values so they don't appear as broken links
             df['File'].replace(['nan', 'unknown'], '', inplace=True)
         
-        # --- FIX: Standardize Priority Values to handle variations ---
-        # This function maps various text inputs (e.g., "high priority") to a standard set.
+        # Standardize Priority Values to handle variations
         def standardize_priority(priority_text):
             if 'most urgent' in priority_text:
                 return 'most urgent'
@@ -66,13 +57,11 @@ def load_data(url):
             else:
                 return 'unknown'
 
-        # Apply the standardization function to the 'Priority' column.
         if 'Priority' in df.columns:
             df['Priority'] = df['Priority'].apply(standardize_priority)
 
-        # --- Feature: Calculate Days Pending ---
-        # Calculate the number of days a task has been pending from the 'Start Date'.
-        df['Days Pending'] = (datetime.now() - df['Start Date']).dt.days
+        # Calculate Days Pending from the 'Entry Date'
+        df['Days Pending'] = (datetime.now() - df['Entry Date']).dt.days
         df['Days Pending'] = df['Days Pending'].fillna(0).astype(int)
 
         return df
@@ -81,7 +70,7 @@ def load_data(url):
         st.info("Please check your Google Sheet for the exact spelling and capitalization of the column headers.")
         try:
             temp_df = pd.read_csv(url)
-            st.write("Here are the column names I found in your sheet:", temp_df.columns.tolist())
+            st.write("Here are the column names found in your sheet:", temp_df.columns.tolist())
         except Exception as read_e:
             st.error(f"Could not read the columns from the sheet. Error: {read_e}")
         return pd.DataFrame()
@@ -106,13 +95,12 @@ st.sidebar.info("This dashboard provides an overview of pending tasks from the G
 # --- Main Application Logic ---
 # Only proceed if the DataFrame was loaded successfully.
 if not df.empty:
-    # --- A task is pending if its status is NOT 'completed' ---
-    pending_tasks_df = df[df['Task Status'] != 'completed'].copy()
+    # A task is pending if its status is NOT 'completed'
+    pending_tasks_df = df[df['Status'] != 'completed'].copy()
 
-    # --- UPDATE: Filter out 'unknown' or 'nan' assignments before displaying ---
-    # This removes rows where the officer or department is unassigned from all calculations.
+    # Filter out 'unknown' or 'nan' assignments before displaying
     pending_tasks_df = pending_tasks_df[
-        ~pending_tasks_df['Assign To'].isin(['unknown', 'nan'])
+        ~pending_tasks_df['Marked to Officer'].isin(['unknown', 'nan'])
     ].copy()
 
 
@@ -124,12 +112,12 @@ if not df.empty:
 
         if not pending_tasks_df.empty:
             # Count pending tasks for each officer.
-            officer_pending_counts = pending_tasks_df['Assign To'].value_counts().reset_index()
+            officer_pending_counts = pending_tasks_df['Marked to Officer'].value_counts().reset_index()
             officer_pending_counts.columns = ['Officer', 'Number of Pending Tasks']
 
             # Calculate Average Pending Days per officer
-            avg_pending_days = pending_tasks_df.groupby('Assign To')['Days Pending'].mean().round(0).astype(int).reset_index()
-            avg_pending_days.rename(columns={'Days Pending': 'Avg. Days Pending', 'Assign To': 'Officer'}, inplace=True)
+            avg_pending_days = pending_tasks_df.groupby('Marked to Officer')['Days Pending'].mean().round(0).astype(int).reset_index()
+            avg_pending_days.rename(columns={'Days Pending': 'Avg. Days Pending', 'Marked to Officer': 'Officer'}, inplace=True)
 
             # Merge the counts and the average days into one summary table.
             officer_summary = pd.merge(officer_pending_counts, avg_pending_days, on='Officer')
@@ -138,8 +126,7 @@ if not df.empty:
             # --- LAYOUT: Show graph first, then the table ---
             st.subheader("Visual Distribution")
             
-            # --- UPDATE: Replaced Plotly with Matplotlib chart as requested ---
-            task_counts = pending_tasks_df['Assign To'].value_counts()
+            task_counts = pending_tasks_df['Marked to Officer'].value_counts()
             fig, ax = plt.subplots(figsize=(10,6))
             bars = ax.bar(task_counts.index, task_counts.values, color='skyblue')
 
@@ -165,7 +152,7 @@ if not df.empty:
             st.subheader("Pending Task Summary")
             st.dataframe(officer_summary, use_container_width=True, hide_index=True)
             
-            # --- NEW FEATURE: Filterable Task List ---
+            # --- Filterable Task List ---
             st.markdown("---")
             st.header("🔍 Filter and View Pending Task Details")
 
@@ -176,15 +163,14 @@ if not df.empty:
                 departments = ['All'] + sorted(pending_tasks_df['Dealing Branch'].unique().tolist())
                 selected_department = st.selectbox("Select a Department", departments)
 
-            # --- UPDATE: Dynamically update officer list based on department selection ---
             with col2:
                 if selected_department == 'All':
                     # If all departments are selected, show all officers
-                    officers = ['All'] + sorted(pending_tasks_df['Assign To'].unique().tolist())
+                    officers = ['All'] + sorted(pending_tasks_df['Marked to Officer'].unique().tolist())
                 else:
                     # If a specific department is selected, show only officers from that department
                     department_specific_df = pending_tasks_df[pending_tasks_df['Dealing Branch'] == selected_department]
-                    officers = ['All'] + sorted(department_specific_df['Assign To'].unique().tolist())
+                    officers = ['All'] + sorted(department_specific_df['Marked to Officer'].unique().tolist())
                 
                 selected_officer = st.selectbox("Select an Officer", officers)
 
@@ -194,7 +180,7 @@ if not df.empty:
                 filtered_df = filtered_df[filtered_df['Dealing Branch'] == selected_department]
             
             if selected_officer != 'All':
-                filtered_df = filtered_df[filtered_df['Assign To'] == selected_officer]
+                filtered_df = filtered_df[filtered_df['Marked to Officer'] == selected_officer]
 
             # Display the 'File' column as clickable links
             st.dataframe(
@@ -252,8 +238,8 @@ if not df.empty:
                 if not priority_df.empty:
                     col1, col2 = st.columns(2)
                     with col1:
-                        officer_data = priority_df['Assign To'].value_counts().reset_index()
-                        st.plotly_chart(create_bar_chart(officer_data, 'Assign To', f'Officer-wise {priority} Tasks', 'Assign To'), use_container_width=True)
+                        officer_data = priority_df['Marked to Officer'].value_counts().reset_index()
+                        st.plotly_chart(create_bar_chart(officer_data, 'Marked to Officer', f'Officer-wise {priority} Tasks', 'Marked to Officer'), use_container_width=True)
                     with col2:
                         # Filter out unknown/nan branches before charting
                         branch_data = priority_df[~priority_df['Dealing Branch'].isin(['unknown', 'nan'])]
@@ -272,4 +258,3 @@ if not df.empty:
             st.warning("No pending tasks found to display.")
 else:
     st.error("Failed to load data. Please check the Google Sheet URL and permissions.")
-
