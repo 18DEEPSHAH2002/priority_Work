@@ -98,8 +98,8 @@ if not df.empty:
     # A task is pending if its status is NOT 'completed'
     pending_tasks_df = df[df['Status'] != 'completed'].copy()
 
-    # --- UPDATE: Removed the filter that excluded unassigned tasks ---
-    # Now, tasks where 'Marked to Officer' is 'unknown' will be included.
+    # --- UPDATE: Re-introduced the filter to exclude unassigned ('unknown') tasks ---
+    pending_tasks_df = pending_tasks_df[pending_tasks_df['Marked to Officer'] != 'unknown'].copy()
 
 
     # --- Page 1: Officer Pending Tasks ---
